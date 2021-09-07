@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/YandexDatabase/ydb-go-sdk/v3/example/internal/cli"
+	"github.com/YandexDatabase/ydb-go-examples/pkg/cli"
 	"github.com/YandexDatabase/ydb-go-sdk/v3/table"
 )
 
