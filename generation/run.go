@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"log"
 	"path"
 	"time"
@@ -34,10 +35,10 @@ func (cmd *Command) ExportFlags(context.Context, *flag.FlagSet) {}
 func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	connectCtx, cancel := context.WithTimeout(ctx, params.ConnectTimeout)
 	defer cancel()
-		db, err := connect.New(
+	db, err := connect.New(
 		connectCtx,
 		params.ConnectParams,
-		environ.FromEnviron(ctx),
+		environ.WithEnvironCredentials(ctx),
 	)
 
 	if err != nil {

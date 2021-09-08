@@ -5,6 +5,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"log"
 	"text/template"
@@ -181,7 +182,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 		db, err := connect.New(
 		connectCtx,
 		params.ConnectParams,
-		environ.FromEnviron(ctx),
+		environ.WithEnvironCredentials(ctx),
 	)
 
 	if err != nil {

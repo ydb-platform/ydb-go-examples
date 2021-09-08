@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 
@@ -17,10 +19,10 @@ type Command struct {
 func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	connectCtx, cancel := context.WithTimeout(ctx, params.ConnectTimeout)
 	defer cancel()
-		db, err := connect.New(
+	db, err := connect.New(
 		connectCtx,
 		params.ConnectParams,
-		environ.FromEnviron(ctx),
+		environ.WithEnvironCredentials(ctx),
 	)
 
 	if err != nil {
