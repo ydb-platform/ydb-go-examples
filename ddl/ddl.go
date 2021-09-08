@@ -4,10 +4,10 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/YandexDatabase/ydb-go-sdk/v3/connect"
+	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 
-	"github.com/YandexDatabase/ydb-go-examples/pkg/cli"
-	"github.com/YandexDatabase/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 )
 
 var (

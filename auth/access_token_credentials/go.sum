@@ -1,9 +1,11 @@
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
-github.com/YandexDatabase/ydb-go-genproto v0.0.0-20210906061342-0c70eaeb512c h1:Xw846Fy7rZbqSWaKhBHglz9vN6B/tr9RAqWMib0yuBI=
-github.com/YandexDatabase/ydb-go-genproto v0.0.0-20210906061342-0c70eaeb512c/go.mod h1:wN/MBEvTRVg739xDmTDQXxUFWzmpNrg8wrhjRjjrIIM=
-github.com/YandexDatabase/ydb-go-sdk/v3 v3.0.0-20210906095231-bb182c3881d6 h1:7fXyCffChrvumZL+MPuRHJrX78gqbuvWrUGuvWf0PNo=
-github.com/YandexDatabase/ydb-go-sdk/v3 v3.0.0-20210906095231-bb182c3881d6/go.mod h1:+zhkgm9OJ0tVMMzm3jI7IMjXBfgPpH4ux+jAfbgYnzI=
+github.com/ydb-platform/ydb-go-examples v0.0.0-20210907074844-aad687b75881 h1:pJBxc23yeDv0JUxELc69AlhMdWuV75MNgCz44IHWebw=
+github.com/ydb-platform/ydb-go-examples v0.0.0-20210907074844-aad687b75881/go.mod h1:IQjVnxleGX+vRiyTCgbEy6FllxXE+RTz63DBMyAJbjE=
+github.com/ydb-platform/ydb-go-genproto v0.0.0-20210906061342-0c70eaeb512c h1:Xw846Fy7rZbqSWaKhBHglz9vN6B/tr9RAqWMib0yuBI=
+github.com/ydb-platform/ydb-go-genproto v0.0.0-20210906061342-0c70eaeb512c/go.mod h1:wN/MBEvTRVg739xDmTDQXxUFWzmpNrg8wrhjRjjrIIM=
+github.com/ydb-platform/ydb-go-sdk/v3 v3.0.0-20210906095231-bb182c3881d6 h1:7fXyCffChrvumZL+MPuRHJrX78gqbuvWrUGuvWf0PNo=
+github.com/ydb-platform/ydb-go-sdk/v3 v3.0.0-20210906095231-bb182c3881d6/go.mod h1:+zhkgm9OJ0tVMMzm3jI7IMjXBfgPpH4ux+jAfbgYnzI=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/cncf/udpa/go v0.0.0-20201120205902-5459f2c99403/go.mod h1:WmhPx2Nbnhtbo57+VJT5O0JRkEi1Wbu0z5j0R8u5Hbk=

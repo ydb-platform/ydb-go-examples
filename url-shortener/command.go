@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/YandexDatabase/ydb-go-examples/pkg/cli"
+	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 	"net/http"
 	"strconv"
 )

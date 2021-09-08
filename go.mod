@@ -1,5 +1,5 @@
-module github.com/YandexDatabase/ydb-go-examples
+module github.com/ydb-platform/ydb-go-examples
 
 go 1.16
 
-require github.com/YandexDatabase/ydb-go-sdk/v3 v3.0.0-20210906095231-bb182c3881d6
+require github.com/ydb-platform/ydb-go-sdk/v3 v3.0.0-20210908142640-2c93fa8ed51f
