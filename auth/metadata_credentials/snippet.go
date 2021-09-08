@@ -18,6 +18,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	db, err := connect.New(
 		connectCtx,
 		params.ConnectParams,
+		environ.WithEnvironCredentials(ctx),
 		connect.WithMetadataCredentials(ctx),
 	)
 	if err != nil {

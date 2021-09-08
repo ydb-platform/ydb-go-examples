@@ -18,6 +18,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	db, err := connect.New(
 		connectCtx,
 		params.ConnectParams,
+		environ.WithEnvironCredentials(ctx),
 		// No need to specify other credentials options for use authenticate from environment variables
 	)
 	if err != nil {

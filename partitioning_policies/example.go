@@ -8,9 +8,9 @@ import (
 	"log"
 	"path"
 
+	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
-	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 )
 

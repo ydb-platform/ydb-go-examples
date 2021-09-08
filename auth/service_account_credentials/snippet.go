@@ -19,6 +19,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	db, err := connect.New(
 		connectCtx,
 		params.ConnectParams,
+		environ.WithEnvironCredentials(ctx),
 		connect.WithServiceAccountKeyFileCredentials(cmd.serviceAccountKeyFile),
 	)
 	if err != nil {
