@@ -17,7 +17,12 @@ type Command struct {
 func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	connectCtx, cancel := context.WithTimeout(ctx, params.ConnectTimeout)
 	defer cancel()
-	db, err := connect.New(connectCtx, params.ConnectParams)
+		db, err := connect.New(
+		connectCtx,
+		params.ConnectParams,
+		environ.FromEnviron(ctx),
+	)
+
 	if err != nil {
 		return fmt.Errorf("connect error: %w", err)
 	}

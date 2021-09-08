@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+
 	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 
 	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
@@ -18,7 +19,6 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	db, err := connect.New(
 		connectCtx,
 		params.ConnectParams,
-		environ.WithEnvironCredentials(ctx),
 		connect.WithAnonymousCredentials(),
 	)
 	if err != nil {

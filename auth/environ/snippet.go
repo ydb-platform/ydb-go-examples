@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 
 	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
