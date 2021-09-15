@@ -43,31 +43,7 @@ func (u *User) StructValue() ydb.Value {
 }
 
 func (s *Series) Scan(res *table.Result) (err error) {
-	res.SeekItem("series_id")
-	s.ID = res.OUint64()
-
-	res.SeekItem("title")
-	s.Title = res.OUTF8()
-
-	res.SeekItem("info")
-	s.Info = res.OUTF8()
-
-	res.SeekItem("release_date")
-	res.Unwrap()
-	if !res.IsNull() {
-		x0 := res.Datetime()
-		err := (*ydb.Time)(&s.ReleaseDate).FromDatetime(x0)
-		if err != nil {
-			panic("ydbgen: date type conversion failed: " + err.Error())
-		}
-	}
-
-	res.SeekItem("views")
-	s.Views = res.OUint64()
-
-	res.SeekItem("uploaded_user_id")
-	s.UploadedUserID = res.OUint64()
-
+	res.ScanWithDefaults(&s.ID, &s.Title, &s.Info, &s.ReleaseDate, &s.Views, &s.UploadedUserID)
 	return res.Err()
 }
 
@@ -92,13 +68,9 @@ func (s *Series) StructValue() ydb.Value {
 		var v4 ydb.Value
 		{
 			var v5 ydb.Value
-			var x0 uint32
 			ok0 := !s.ReleaseDate.IsZero()
 			if ok0 {
-				x0 = ydb.Time(s.ReleaseDate).Datetime()
-			}
-			if ok0 {
-				v5 = ydb.OptionalValue(ydb.DatetimeValue(x0))
+				v5 = ydb.OptionalValue(ydb.DatetimeValueFromTime(s.ReleaseDate))
 			} else {
 				v5 = ydb.NullValue(ydb.TypeDatetime)
 			}
@@ -117,7 +89,7 @@ func (s *Series) StructValue() ydb.Value {
 		v0 = ydb.StructValue(
 			ydb.StructFieldValue("series_id", v1),
 			ydb.StructFieldValue("title", v2),
-			ydb.StructFieldValue("info", v3),
+			ydb.StructFieldValue("series_info", v3),
 			ydb.StructFieldValue("release_date", v4),
 			ydb.StructFieldValue("views", v5),
 			ydb.StructFieldValue("uploaded_user_id", v6),
@@ -197,34 +169,11 @@ func (us UsersList) ListValue() ydb.Value {
 
 func (ss *SeriesList) Scan(res *table.Result) (err error) {
 	for res.NextRow() {
-		var x0 Series
-		res.SeekItem("series_id")
-		x0.ID = res.OUint64()
-
-		res.SeekItem("title")
-		x0.Title = res.OUTF8()
-
-		res.SeekItem("info")
-		x0.Info = res.OUTF8()
-
-		res.SeekItem("release_date")
-		res.Unwrap()
-		if !res.IsNull() {
-			x1 := res.Datetime()
-			err := (*ydb.Time)(&x0.ReleaseDate).FromDatetime(x1)
-			if err != nil {
-				panic("ydbgen: date type conversion failed: " + err.Error())
-			}
-		}
-
-		res.SeekItem("views")
-		x0.Views = res.OUint64()
-
-		res.SeekItem("uploaded_user_id")
-		x0.UploadedUserID = res.OUint64()
+		var s Series
+		res.ScanWithDefaults(&s.ID, &s.Title, &s.Info, &s.ReleaseDate, &s.Views, &s.UploadedUserID)
 
 		if res.Err() == nil {
-			*ss = append(*ss, x0)
+			*ss = append(*ss, s)
 		}
 	}
 	return res.Err()
@@ -256,13 +205,9 @@ func (ss SeriesList) ListValue() ydb.Value {
 				var v5 ydb.Value
 				{
 					var v6 ydb.Value
-					var x0 uint32
 					ok0 := !item0.ReleaseDate.IsZero()
 					if ok0 {
-						x0 = ydb.Time(item0.ReleaseDate).Datetime()
-					}
-					if ok0 {
-						v6 = ydb.OptionalValue(ydb.DatetimeValue(x0))
+						v6 = ydb.OptionalValue(ydb.DatetimeValueFromTime(item0.ReleaseDate))
 					} else {
 						v6 = ydb.NullValue(ydb.TypeDatetime)
 					}
@@ -281,7 +226,7 @@ func (ss SeriesList) ListValue() ydb.Value {
 				v1 = ydb.StructValue(
 					ydb.StructFieldValue("series_id", v2),
 					ydb.StructFieldValue("title", v3),
-					ydb.StructFieldValue("info", v4),
+					ydb.StructFieldValue("series_info", v4),
 					ydb.StructFieldValue("release_date", v5),
 					ydb.StructFieldValue("views", v6),
 					ydb.StructFieldValue("uploaded_user_id", v7),
@@ -314,7 +259,7 @@ func (ss SeriesList) ListValue() ydb.Value {
 					tp0 := ydb.TypeUTF8
 					t5 = ydb.Optional(tp0)
 				}
-				fs0[2] = ydb.StructField("info", t5)
+				fs0[2] = ydb.StructField("series_info", t5)
 				var t6 ydb.Type
 				{
 					tp0 := ydb.TypeDatetime

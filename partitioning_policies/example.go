@@ -5,19 +5,20 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
+
 	"log"
 	"path"
 
-	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+
+	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
 
 type Command struct {
-	config func(cli.Parameters) *ydb.DriverConfig
-	table  string
+	table string
 }
 
 func wrap(err error, explanation string) error {
@@ -106,7 +107,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	if err != nil {
 		return fmt.Errorf("connect error: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tableName := cmd.table
 	cmd.table = path.Join(params.Prefix(), cmd.table)
@@ -120,7 +121,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 		return err
 	}
 
-	if err := cmd.testUniformPartitions(ctx, db.Table().Pool()); err != nil {
+	if err = cmd.testUniformPartitions(ctx, db.Table().Pool()); err != nil {
 		return wrap(err, "failed to test uniform partitions")
 	}
 

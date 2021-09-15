@@ -10,11 +10,12 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
-	"github.com/ydb-platform/ydb-go-sdk-auth-environ"
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+
+	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
 
 type templateConfig struct {
@@ -92,7 +93,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	if err != nil {
 		return fmt.Errorf("connect error: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	err = db.CleanupDatabase(ctx, params.Prefix(), "series", "episodes", "seasons")
 	if err != nil {
@@ -170,8 +171,7 @@ func readTable(ctx context.Context, sp *table.SessionPool, path string) (err err
 		title *string
 		date  *uint64
 	)
-	// TODO(kamardin): truncated flag.
-	for res.NextStreamSet(ctx, "series_id", "title", "release_date") {
+	for res.NextResultSet(ctx, "series_id", "title", "release_date") {
 		for res.NextRow() {
 			_ = res.Scan(&id, &title, &date)
 
@@ -293,7 +293,7 @@ func selectSimple(ctx context.Context, sp *table.SessionPool, prefix string) (er
 		date  *[]byte
 	)
 	// TODO(kamardin): truncated flag.
-	for res.NextSet("series_id", "title", "release_date") {
+	for res.NextResultSet(ctx, "series_id", "title", "release_date") {
 		for res.NextRow() {
 
 			_ = res.Scan(&id, &title, &date)
@@ -345,27 +345,24 @@ func scanQuerySelect(ctx context.Context, sp *table.SessionPool, prefix string) 
 	if err != nil {
 		return err
 	}
-
+	var (
+		seriesId uint64
+		seasonId uint64
+		title    string
+		date     string
+	)
 	log.Print("\n> scan_query_select:")
-	for res.NextStreamSet(ctx) {
+	for res.NextResultSet(ctx, "series_id", "season_id", "title", "first_aired") {
 		if err = res.Err(); err != nil {
 			return err
 		}
 
 		for res.NextRow() {
-			res.SeekItem("series_id")
-			id := res.OUint64()
-
-			res.SeekItem("season_id")
-			season := res.OUint64()
-
-			res.SeekItem("title")
-			title := res.OUTF8()
-
-			res.SeekItem("first_aired")
-			date := res.OString()
-
-			log.Printf("#  Season, SeriesId: %d, SeasonId: %d, Title: %s, Air date: %s", id, season, title, date)
+			err = res.ScanWithDefaults(&seriesId, &seasonId, &title, &date)
+			if err != nil {
+				return err
+			}
+			log.Printf("#  Season, SeriesId: %d, SeasonId: %d, Title: %s, Air date: %s", seriesId, seasonId, title, date)
 		}
 	}
 	if err = res.Err(); err != nil {

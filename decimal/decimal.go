@@ -5,16 +5,17 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"math/big"
 	"path"
 	"text/template"
 
-	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/decimal"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+
+	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
 
 type templateConfig struct {
@@ -43,6 +44,13 @@ SELECT value FROM decimals;
 type Command struct {
 }
 
+type exampleDecimal [16]byte
+
+func (s *exampleDecimal) UnmarshalYDB(res ydb.RawValue) error {
+	*s = res.ODecimal(ydb.DefaultDecimal)
+	return res.Err()
+}
+
 func (cmd *Command) ExportFlags(context.Context, *flag.FlagSet) {}
 
 func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
@@ -57,7 +65,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	if err != nil {
 		return fmt.Errorf("connect error: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	session, err := db.Table().CreateSession(ctx)
 	if err != nil {
@@ -124,12 +132,15 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	if err != nil {
 		return err
 	}
-	for res.NextSet() {
+	var p exampleDecimal
+	for res.NextResultSet(ctx) {
 		for res.NextRow() {
-			res.NextItem()
-			p := res.ODecimal(ydb.DefaultDecimal)
+			err = res.Scan(&p)
+			if err != nil {
+				return err
+			}
 
-			x := decimal.FromInt128(p, 22, 9)
+			x = decimal.FromInt128(p, 22, 9)
 			fmt.Println(decimal.Format(x, 22, 9))
 		}
 	}

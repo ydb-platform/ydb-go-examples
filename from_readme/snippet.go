@@ -8,9 +8,9 @@ import (
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 
 	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 )
 
 type Command struct {
@@ -28,7 +28,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	if err != nil {
 		return fmt.Errorf("connect error: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	err = prepareScheme(ctx, db, params.Prefix())
 	if err != nil {
@@ -56,10 +56,10 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 		table.CommitTx(),
 	)
 	// Execute text query without preparation and with given "autocommit"
-	// transaction control. That is, transaction will be commited without
+	// transaction control. That is, transaction will be committed without
 	// additional calls. Notice the "_" unused variable – it stands for created
-	// transaction during execution, but as said above, transaction is commited
-	// for us and we do not want to do anything with it.
+	// transaction during execution, but as said above, transaction is committed
+	// for us, and we do not want to do anything with it.
 	_, res, err := s.Execute(ctx, txc,
 		`
 			DECLARE $mystr AS Utf8?;
@@ -79,7 +79,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 		id    int32
 		myStr *string //optional value
 	)
-	for res.NextSet("id", "mystr") {
+	for res.NextResultSet(ctx, "id", "mystr") {
 		for res.NextRow() {
 			// Suppose our "users" table has two rows: id and age.
 			// Thus, current row will contain two appropriate items with

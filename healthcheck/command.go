@@ -4,8 +4,9 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 	"time"
+
+	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
 
 type Command struct {

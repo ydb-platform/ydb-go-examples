@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"strconv"
 
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 )
 
@@ -16,7 +16,7 @@ func doUpdate(
 	args ...string,
 ) error {
 	if len(args) != 2 {
-		return fmt.Errorf("id of series and new views id arguemnts are required")
+		return fmt.Errorf("id of series and new views id arguments are required")
 	}
 	s, err := strconv.ParseUint(args[0], 10, 64)
 	if err != nil {
@@ -84,8 +84,11 @@ func updateTransaction(ctx context.Context, sp *table.SessionPool, prefix string
 	if err != nil {
 		return
 	}
-	if res.NextSet() && res.NextRow() && res.NextItem() {
-		count = res.Uint64()
+	if res.NextResultSet(ctx) && res.NextRow() {
+		err = res.Scan(&count)
+		if err != nil {
+			return
+		}
 	}
 	return
 }

@@ -4,15 +4,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"log"
 	"path"
 	"time"
 
-	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+
+	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
 
 type Command struct {
@@ -32,7 +33,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	if err != nil {
 		return fmt.Errorf("connect error: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tableName := "orders"
 	fmt.Println("Read whole table, unsorted:")
@@ -90,6 +91,13 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	return nil
 }
 
+type row struct {
+	id          uint64
+	orderID     uint64
+	date        time.Time
+	description string
+}
+
 func readTable(ctx context.Context, sp *table.SessionPool, path string, opts ...table.ReadTableOption) (err error) {
 	var res *table.Result
 
@@ -103,24 +111,21 @@ func readTable(ctx context.Context, sp *table.SessionPool, path string, opts ...
 		return err
 	}
 
-	for res.NextStreamSet(ctx) {
+	r := row{}
+	for res.NextResultSet(ctx) {
 		for res.NextRow() {
-
-			res.SeekItem("customer_id")
-			id := res.OUint64()
-
-			res.SeekItem("order_id")
-			orderID := res.OUint64()
-
-			res.SeekItem("order_date")
-			date := res.ODate()
-
 			if res.ColumnCount() == 4 {
-				res.SeekItem("description")
-				description := res.OUTF8()
-				log.Printf("#  Order, CustomerId: %d, OrderId: %d, Description: %s, Order date: %s", id, orderID, description, time.Unix(int64(date)*24*60*60, 0).Format("2006-01-02"))
+				err = res.ScanWithDefaults(&r.id, &r.orderID, &r.description, &r.date)
+				if err != nil {
+					return err
+				}
+				log.Printf("#  Order, CustomerId: %d, OrderId: %d, Description: %s, Order date: %s", r.id, r.orderID, r.description, r.date.Format("2006-01-02"))
 			} else {
-				log.Printf("#  Order, CustomerId: %d, OrderId: %d, Order date: %s", id, orderID, time.Unix(int64(date)*24*60*60, 0).Format("2006-01-02"))
+				err = res.ScanWithDefaults(&r.id, &r.orderID, &r.date)
+				if err != nil {
+					return err
+				}
+				log.Printf("#  Order, CustomerId: %d, OrderId: %d, Order date: %s", r.id, r.orderID, r.date.Format("2006-01-02"))
 			}
 		}
 	}

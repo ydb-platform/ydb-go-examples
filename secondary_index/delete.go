@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"strconv"
 
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 )
 
@@ -73,8 +73,11 @@ func deleteTransaction(ctx context.Context, sp *table.SessionPool, prefix string
 	if err != nil {
 		return
 	}
-	if res.NextSet() && res.NextRow() && res.NextItem() {
-		count = res.Uint64()
+	if res.NextResultSet(ctx) && res.NextRow() {
+		err = res.Scan(&count)
+		if err != nil {
+			return
+		}
 	}
 	return
 }

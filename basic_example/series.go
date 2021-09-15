@@ -6,16 +6,17 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"log"
 	"path"
 	"text/template"
 	"time"
 
-	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+
+	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
 
 type templateConfig struct {
@@ -25,33 +26,33 @@ type templateConfig struct {
 var fill = template.Must(template.New("fill database").Parse(`
 PRAGMA TablePathPrefix("{{ .TablePathPrefix }}");
 
-DECLARE $seriesData AS "List<Struct<
+DECLARE $seriesData AS List<Struct<
 	series_id: Uint64,
 	title: Utf8,
 	series_info: Utf8,
 	release_date: Date,
-	comment: Optional<Utf8>>>";
+	comment: Optional<Utf8>>>;
 
-DECLARE $seasonsData AS "List<Struct<
+DECLARE $seasonsData AS List<Struct<
 	series_id: Uint64,
 	season_id: Uint64,
 	title: Utf8,
 	first_aired: Date,
-	last_aired: Date>>";
+	last_aired: Date>>;
 
-DECLARE $episodesData AS "List<Struct<
+DECLARE $episodesData AS List<Struct<
 	series_id: Uint64,
 	season_id: Uint64,
 	episode_id: Uint64,
 	title: Utf8,
-	air_date: Date>>";
+	air_date: Date>>;
 
 REPLACE INTO series
 SELECT
 	series_id,
 	title,
 	series_info,
-	DateTime::ToDays(release_date) AS release_date,
+	release_date,
 	comment
 FROM AS_TABLE($seriesData);
 
@@ -60,8 +61,8 @@ SELECT
 	series_id,
 	season_id,
 	title,
-	DateTime::ToDays(first_aired) AS first_aired,
-	DateTime::ToDays(last_aired) AS last_aired
+	first_aired,
+	last_aired
 FROM AS_TABLE($seasonsData);
 
 REPLACE INTO episodes
@@ -70,7 +71,7 @@ SELECT
 	season_id,
 	episode_id,
 	title,
-	DateTime::ToDays(air_date) AS air_date
+	air_date
 FROM AS_TABLE($episodesData);
 `))
 
@@ -90,7 +91,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	if err != nil {
 		return fmt.Errorf("connect error: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	err = db.CleanupDatabase(ctx, params.Prefix(), "series", "episodes", "seasons")
 	if err != nil {
@@ -162,18 +163,19 @@ func readTable(ctx context.Context, sp *table.SessionPool, path string) (err err
 		return err
 	}
 	log.Printf("\n> read_table:")
-	// TODO(kamardin): truncated flag.
-	for res.NextStreamSet(ctx) {
+	var (
+		title *string
+		date  *time.Time
+	)
+	for res.NextResultSet(ctx) {
 		for res.NextRow() {
-			res.NextItem()
-			title := res.OUTF8()
-
-			var t ydb.Time
-			res.NextItem()
-			date := res.OUint64()
-			_ = t.FromDate(uint32(date))
-
-			log.Printf("#   %s %s", time.Time(t).Format(DateISO8601), title)
+			err = res.Scan(&title, &date)
+			if err != nil {
+				return err
+			}
+			if date != nil && title != nil {
+				log.Printf("#   %s %s", (*date).Format(dateISO8601), *title)
+			}
 		}
 	}
 	if err := res.Err(); err != nil {
@@ -229,7 +231,7 @@ func selectSimple(ctx context.Context, sp *table.SessionPool, prefix string) (er
 			SELECT
 				series_id,
 				title,
-				DateTime::ToDate(DateTime::FromDays(release_date)) AS release_date
+				release_date AS release_date
 			FROM
 				series
 			WHERE
@@ -263,21 +265,21 @@ func selectSimple(ctx context.Context, sp *table.SessionPool, prefix string) (er
 	if err != nil {
 		return err
 	}
-	// TODO(kamardin): truncated flag.
-	for res.NextSet() {
+
+	var (
+		id    *uint64
+		title *string
+		date  *time.Time
+	)
+	for res.NextResultSet(ctx) {
 		for res.NextRow() {
-			res.SeekItem("series_id")
-			id := res.OUint64()
-
-			res.NextItem()
-			title := res.OUTF8()
-
-			res.NextItem()
-			date := res.OString()
-
+			err = res.Scan(&id, &title, &date)
+			if err != nil {
+				return err
+			}
 			log.Printf(
 				"\n> select_simple_transaction: %d %s %s",
-				id, title, date,
+				*id, *title, (*date).Format(time.RFC3339),
 			)
 		}
 	}
@@ -343,27 +345,24 @@ func scanQuerySelect(ctx context.Context, sp *table.SessionPool, prefix string) 
 	if err != nil {
 		return err
 	}
-
+	var (
+		seriesID uint64
+		seasonID uint64
+		title    string
+		date     string
+	)
 	log.Print("\n> scan_query_select:")
-	for res.NextStreamSet(ctx) {
+	for res.NextResultSet(ctx, "series_id", "season_id", "title", "first_aired") {
 		if err = res.Err(); err != nil {
 			return err
 		}
 
 		for res.NextRow() {
-			res.SeekItem("series_id")
-			id := res.OUint64()
-
-			res.SeekItem("season_id")
-			season := res.OUint64()
-
-			res.SeekItem("title")
-			title := res.OUTF8()
-
-			res.SeekItem("first_aired")
-			date := res.OString()
-
-			log.Printf("#  Season, SeriesId: %d, SeasonId: %d, Title: %s, Air date: %s", id, season, title, date)
+			err = res.ScanWithDefaults(&seriesID, &seasonID, &title, &date)
+			if err != nil {
+				return err
+			}
+			log.Printf("#  Season, SeriesId: %d, SeasonId: %d, Title: %s, Air date: %s", seriesID, seasonID, title, date)
 		}
 	}
 	if err = res.Err(); err != nil {
@@ -405,7 +404,7 @@ func createTables(ctx context.Context, sp *table.SessionPool, prefix string) (er
 				table.WithColumn("series_id", ydb.Optional(ydb.TypeUint64)),
 				table.WithColumn("title", ydb.Optional(ydb.TypeUTF8)),
 				table.WithColumn("series_info", ydb.Optional(ydb.TypeUTF8)),
-				table.WithColumn("release_date", ydb.Optional(ydb.TypeUint64)),
+				table.WithColumn("release_date", ydb.Optional(ydb.TypeDate)),
 				table.WithColumn("comment", ydb.Optional(ydb.TypeUTF8)),
 				table.WithPrimaryKeyColumn("series_id"),
 			)
@@ -421,8 +420,8 @@ func createTables(ctx context.Context, sp *table.SessionPool, prefix string) (er
 				table.WithColumn("series_id", ydb.Optional(ydb.TypeUint64)),
 				table.WithColumn("season_id", ydb.Optional(ydb.TypeUint64)),
 				table.WithColumn("title", ydb.Optional(ydb.TypeUTF8)),
-				table.WithColumn("first_aired", ydb.Optional(ydb.TypeUint64)),
-				table.WithColumn("last_aired", ydb.Optional(ydb.TypeUint64)),
+				table.WithColumn("first_aired", ydb.Optional(ydb.TypeDate)),
+				table.WithColumn("last_aired", ydb.Optional(ydb.TypeDate)),
 				table.WithPrimaryKeyColumn("series_id", "season_id"),
 			)
 		}),
@@ -438,7 +437,7 @@ func createTables(ctx context.Context, sp *table.SessionPool, prefix string) (er
 				table.WithColumn("season_id", ydb.Optional(ydb.TypeUint64)),
 				table.WithColumn("episode_id", ydb.Optional(ydb.TypeUint64)),
 				table.WithColumn("title", ydb.Optional(ydb.TypeUTF8)),
-				table.WithColumn("air_date", ydb.Optional(ydb.TypeUint64)),
+				table.WithColumn("air_date", ydb.Optional(ydb.TypeDate)),
 				table.WithPrimaryKeyColumn("series_id", "season_id", "episode_id"),
 			)
 		}),

@@ -4,13 +4,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"path"
 
-	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+
+	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
 
 type Command struct {
@@ -30,7 +31,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	if err != nil {
 		return fmt.Errorf("connect error: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	err = db.CleanupDatabase(ctx, params.Prefix(), "schools")
 	if err != nil {
@@ -51,7 +52,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 		return fmt.Errorf("fill tables with data error: %w", err)
 	}
 
-	lastNum := 0
+	var lastNum uint
 	lastCity := ""
 	limit := 3
 	maxPages := 10
@@ -67,7 +68,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 }
 
 func selectPaging(
-	ctx context.Context, sp *table.SessionPool, prefix string, limit int, lastNum *int, lastCity *string) (
+	ctx context.Context, sp *table.SessionPool, prefix string, limit int, lastNum *uint, lastCity *string) (
 	empty bool, err error) {
 
 	var query = fmt.Sprintf(`
@@ -110,21 +111,16 @@ func selectPaging(
 	if err = res.Err(); err != nil {
 		return
 	}
-	if !res.NextSet() || !res.HasNextRow() {
+	if !res.NextResultSet(ctx, "city", "number", "address") || !res.HasNextRow() {
 		empty = true
 		return
 	}
-
+	var addr string
 	for res.NextRow() {
-		res.SeekItem("city")
-		*lastCity = res.OUTF8()
-
-		res.SeekItem("number")
-		*lastNum = int(res.OUint32())
-
-		res.SeekItem("address")
-		addr := res.OUTF8()
-
+		err = res.ScanWithDefaults(lastCity, lastNum, &addr)
+		if err != nil {
+			return false, err
+		}
 		fmt.Printf("\t%v, School #%v, Address: %v\n", *lastCity, *lastNum, addr)
 	}
 	return

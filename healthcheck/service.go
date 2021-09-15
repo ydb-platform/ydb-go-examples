@@ -5,16 +5,17 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"text/template"
 	"time"
+
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
+	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 )
 
 func render(t *template.Template, data interface{}) string {
@@ -44,7 +45,7 @@ type service struct {
 func NewService(ctx context.Context, connectParams connect.ConnectParams, connectTimeout time.Duration) (h *service, err error) {
 	connectCtx, cancel := context.WithTimeout(ctx, connectTimeout)
 	defer cancel()
-	db, err := connect.New(connectCtx, connectParams)
+	db, err := connect.New(connectCtx, connectParams, environ.WithEnvironCredentials(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("connect error: %w", err)
 	}
@@ -62,14 +63,14 @@ func NewService(ctx context.Context, connectParams connect.ConnectParams, connec
 	}
 	err = h.createTable(ctx)
 	if err != nil {
-		db.Close()
+		defer func() { _ = db.Close() }()
 		return nil, fmt.Errorf("error on create table: %w", err)
 	}
 	return h, nil
 }
 
 func (s *service) Close() {
-	s.db.Close()
+	defer func() { _ = s.db.Close() }()
 }
 
 func (s *service) createTable(ctx context.Context) (err error) {
@@ -161,9 +162,9 @@ func (s *service) saveCodes(ctx context.Context, codes *sync.Map) (err error) {
 	go func() {
 		codes.Range(
 			func(url, code interface{}) bool {
-				result := code.(result)
+				res := code.(result)
 				writeTx := table.TxControl(table.BeginTx(table.WithSerializableReadWrite()), table.CommitTx())
-				err := table.Retry(
+				err = table.Retry(
 					ctx,
 					s.db.Table().Pool(),
 					table.OperationFunc(
@@ -174,9 +175,9 @@ func (s *service) saveCodes(ctx context.Context, codes *sync.Map) (err error) {
 								query,
 								table.NewQueryParameters(
 									table.ValueParam("$url", ydb.UTF8Value(url.(string))),
-									table.ValueParam("$code", ydb.Int32Value(int32(result.code))),
-									table.ValueParam("$ts", ydb.DatetimeValue(ydb.Time(time.Now()).Datetime())),
-									table.ValueParam("$error", ydb.UTF8Value(result.err)),
+									table.ValueParam("$code", ydb.Int32Value(int32(res.code))),
+									table.ValueParam("$ts", ydb.DatetimeValueFromTime(time.Now())),
+									table.ValueParam("$error", ydb.UTF8Value(res.err)),
 								),
 							)
 							return err
@@ -184,7 +185,7 @@ func (s *service) saveCodes(ctx context.Context, codes *sync.Map) (err error) {
 					),
 				)
 				if err != nil {
-					fmt.Println("error on save code", url, result, err)
+					fmt.Println("error on save code", url, res, err)
 					errs <- err
 				}
 				return true
@@ -200,14 +201,4 @@ func (s *service) saveCodes(ctx context.Context, codes *sync.Map) (err error) {
 		return nil
 	}
 	return fmt.Errorf("errors: [%s]", strings.Join(ee, ","))
-}
-
-// Serverless is an entrypoint for serverless yandex function
-func Serverless(ctx context.Context) error {
-	s, err := NewService(ctx, connect.MustConnectionString(os.Getenv("YDB")), time.Second)
-	if err != nil {
-		return fmt.Errorf("error on create service: %w", err)
-	}
-	defer s.Close()
-	return s.check(ctx, strings.Split(os.Getenv("URLS"), ","))
 }
