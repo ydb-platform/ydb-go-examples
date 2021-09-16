@@ -4,13 +4,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"path"
 
-	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+
+	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
 
 const (
@@ -35,7 +36,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	if err != nil {
 		return fmt.Errorf("connect error: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	err = db.CleanupDatabase(ctx, params.Prefix(), "documents")
 	if err != nil {
@@ -242,16 +243,19 @@ func deleteExpiredRange(ctx context.Context, sp *table.SessionPool, prefix strin
 
 	// As single key range usually represents a single shard, so we batch deletions here
 	// without introducing distributed transactions.
-	var docIds []uint64
-	for res.NextStreamSet(ctx) {
+	var (
+		docIds []uint64
+		docID  uint64
+		ts     uint64
+	)
+	for res.NextResultSet(ctx) {
 		for res.NextRow() {
-			res.SeekItem("doc_id")
-			docID := res.OUint64()
+			err = res.ScanWithDefaults(&docID, &ts)
+			if err != nil {
+				return err
+			}
 
-			res.SeekItem("ts")
-			rowTimestamp := res.OUint64()
-
-			if rowTimestamp <= timestamp {
+			if ts <= timestamp {
 				docIds = append(docIds, docID)
 			}
 			if len(docIds) >= DeleteBatchSize {
@@ -333,18 +337,21 @@ func readDocument(ctx context.Context, sp *table.SessionPool, prefix, url string
 	if res.Err() != nil {
 		return res.Err()
 	}
-	if res.NextSet() && res.NextRow() {
-		res.SeekItem("doc_id")
-		fmt.Printf("\tDocId: %v\n", res.OUint64())
-
-		res.SeekItem("url")
-		fmt.Printf("\tUrl: %v\n", res.OUTF8())
-
-		res.SeekItem("ts")
-		fmt.Printf("\tTimestamp: %v\n", res.OUint64())
-
-		res.SeekItem("html")
-		fmt.Printf("\tHtml: %v\n", res.OUTF8())
+	var (
+		docID  *uint64
+		docURL *string
+		ts     *uint64
+		html   *string
+	)
+	if res.NextResultSet(ctx, "doc_id", "url", "ts", "html") && res.NextRow() {
+		err = res.Scan(&docID, &docURL, &ts, &html)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("\tDocId: %v\n", docID)
+		fmt.Printf("\tUrl: %v\n", docURL)
+		fmt.Printf("\tTimestamp: %v\n", ts)
+		fmt.Printf("\tHtml: %v\n", html)
 	} else {
 		fmt.Println("\tNot found")
 	}

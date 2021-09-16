@@ -16,18 +16,7 @@ var (
 )
 
 func (i *Item) Scan(res *table.Result) (err error) {
-	res.SeekItem("host_uid")
-	i.HostUID = res.OUint64()
-
-	res.SeekItem("url_uid")
-	i.URLUID = res.OUint64()
-
-	res.SeekItem("url")
-	i.URL = res.OUTF8()
-
-	res.SeekItem("page")
-	i.Page = res.OUTF8()
-
+	res.ScanWithDefaults(&i.HostUID, &i.URLUID, &i.URL, &i.Page)
 	return res.Err()
 }
 
@@ -67,17 +56,7 @@ func (i *Item) StructValue() ydb.Value {
 func (is *ItemList) Scan(res *table.Result) (err error) {
 	for res.NextRow() {
 		var x0 Item
-		res.SeekItem("host_uid")
-		x0.HostUID = res.OUint64()
-
-		res.SeekItem("url_uid")
-		x0.URLUID = res.OUint64()
-
-		res.SeekItem("url")
-		x0.URL = res.OUTF8()
-
-		res.SeekItem("page")
-		x0.Page = res.OUTF8()
+		res.ScanWithDefaults(&x0.HostUID, &x0.URLUID, &x0.URL, &x0.Page)
 
 		if res.Err() == nil {
 			*is = append(*is, x0)

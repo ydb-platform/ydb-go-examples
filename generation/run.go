@@ -4,16 +4,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"log"
 	"path"
 	"time"
 
-	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
-	"github.com/ydb-platform/ydb-go-sdk/v3/opt"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+
+	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
 
 var (
@@ -44,7 +44,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	if err != nil {
 		return fmt.Errorf("connect error: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	session, err := db.Table().CreateSession(ctx)
 	if err != nil {
@@ -101,7 +101,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 
 		users := Users{
 			{ID: 0, Username: "Randy", Mode: 042},
-			{ID: 1, Username: "Leo", Score: opt.OInt64(42)},
+			{ID: 1, Username: "Leo", Score: 42},
 		}
 		stmt, err := session.Prepare(ctx, withPragma(params.Prefix(), fill))
 		if err != nil {
@@ -132,7 +132,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 			ID:       3,
 			Username: "Elliot",
 			Magic:    1,
-			Score:    opt.OInt64(43),
+			Score:    43,
 			Updated:  time.Now(),
 		}
 		stmt, err := session.Prepare(ctx, withPragma(params.Prefix(), insert))
@@ -157,14 +157,14 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 			return err
 		}
 
-		res.NextSet()
-
-		var users Users
-		if err := (&users).Scan(res); err != nil {
-			return err
-		}
-		for _, user := range users {
-			log.Printf("> user %+v", user)
+		if res.NextResultSet(ctx, "id", "username", "mode", "magic", "score", "updated") {
+			var users Users
+			if err = (&users).Scan(res); err != nil {
+				return err
+			}
+			for _, user := range users {
+				log.Printf("> user %+v", user)
+			}
 		}
 	}
 	{
@@ -186,16 +186,16 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 			return err
 		}
 
-		res.NextSet()
-
-		var list MagicUsersList
-		if err := (&list).Scan(res); err != nil {
-			return err
-		}
-		for _, m := range list {
-			log.Printf("> magic: %d", m.Magic)
-			for _, user := range m.Users {
-				log.Printf("  > user %+v", user)
+		if res.NextResultSet(ctx) {
+			var list MagicUsersList
+			if err := (&list).Scan(res); err != nil {
+				return err
+			}
+			for _, m := range list {
+				log.Printf("> magic: %d", m.Magic)
+				for _, user := range m.Users {
+					log.Printf("  > user %+v", user)
+				}
 			}
 		}
 	}

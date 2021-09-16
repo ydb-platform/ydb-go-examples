@@ -3,10 +3,9 @@
 package main
 
 import (
-	"strconv"
-
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"strconv"
 )
 
 var (
@@ -16,35 +15,7 @@ var (
 )
 
 func (u *User) Scan(res *table.Result) (err error) {
-	res.SeekItem("id")
-	u.ID = res.OUint64()
-
-	res.SeekItem("username")
-	u.Username = res.OUTF8()
-
-	res.SeekItem("mode")
-	u.Mode = ydbConvU64ToU8(res.OUint64())
-
-	res.SeekItem("magic")
-	u.Magic = uint(res.OUint32())
-
-	res.SeekItem("score")
-	res.Unwrap()
-	if !res.IsNull() {
-		x0 := res.Int64()
-		u.Score.Set(x0)
-	}
-
-	res.SeekItem("updated")
-	res.Unwrap()
-	if !res.IsNull() {
-		x0 := res.Timestamp()
-		err := (*ydb.Time)(&u.Updated).FromTimestamp(x0)
-		if err != nil {
-			panic("ydbgen: date type conversion failed: " + err.Error())
-		}
-	}
-
+	res.ScanWithDefaults(&u.ID, &u.Username, &u.Mode, &u.Magic, &u.Score, &u.Updated)
 	return res.Err()
 }
 
@@ -72,24 +43,15 @@ func (u *User) QueryParameters() *table.QueryParameters {
 	var v4 ydb.Value
 	{
 		var v5 ydb.Value
-		x0, ok0 := u.Score.Get()
-		if ok0 {
-			v5 = ydb.OptionalValue(ydb.Int64Value(x0))
-		} else {
-			v5 = ydb.NullValue(ydb.TypeInt64)
-		}
+		v5 = ydb.OptionalValue(ydb.Int64Value(u.Score))
 		v4 = v5
 	}
 	var v5 ydb.Value
 	{
 		var v6 ydb.Value
-		var x0 uint64
 		ok0 := !u.Updated.IsZero()
 		if ok0 {
-			x0 = ydb.Time(u.Updated).Timestamp()
-		}
-		if ok0 {
-			v6 = ydb.OptionalValue(ydb.TimestampValue(x0))
+			v6 = ydb.OptionalValue(ydb.TimestampValueFromTime(u.Updated))
 		} else {
 			v6 = ydb.NullValue(ydb.TypeTimestamp)
 		}
@@ -131,24 +93,15 @@ func (u *User) StructValue() ydb.Value {
 		var v5 ydb.Value
 		{
 			var v6 ydb.Value
-			x0, ok0 := u.Score.Get()
-			if ok0 {
-				v6 = ydb.OptionalValue(ydb.Int64Value(x0))
-			} else {
-				v6 = ydb.NullValue(ydb.TypeInt64)
-			}
+			v6 = ydb.OptionalValue(ydb.Int64Value(u.Score))
 			v5 = v6
 		}
 		var v6 ydb.Value
 		{
 			var v7 ydb.Value
-			var x0 uint64
 			ok0 := !u.Updated.IsZero()
 			if ok0 {
-				x0 = ydb.Time(u.Updated).Timestamp()
-			}
-			if ok0 {
-				v7 = ydb.OptionalValue(ydb.TimestampValue(x0))
+				v7 = ydb.OptionalValue(ydb.TimestampValueFromTime(u.Updated))
 			} else {
 				v7 = ydb.NullValue(ydb.TypeTimestamp)
 			}
@@ -212,58 +165,17 @@ func (u *User) StructType() ydb.Type {
 }
 
 func (m *MagicUsers) Scan(res *table.Result) (err error) {
-	res.NextItem()
-	m.Magic = uint(res.OUint32())
-
-	res.NextItem()
-	n0 := res.ListIn()
-	xs0 := make([]string, n0)
-	for i0 := 0; i0 < n0; i0++ {
-		res.ListItem(i0)
-		var x0 string
-		x0 = res.UTF8()
-		xs0[i0] = x0
-	}
-	m.Users = xs0
-	res.ListOut()
-
+	res.ScanWithDefaults(&m.Magic, newUsers(&m.Users))
 	return res.Err()
 }
 
 func (us *Users) Scan(res *table.Result) (err error) {
 	for res.NextRow() {
-		var x0 User
-		res.SeekItem("id")
-		x0.ID = res.OUint64()
-
-		res.SeekItem("username")
-		x0.Username = res.OUTF8()
-
-		res.SeekItem("mode")
-		x0.Mode = ydbConvU64ToU8(res.OUint64())
-
-		res.SeekItem("magic")
-		x0.Magic = uint(res.OUint32())
-
-		res.SeekItem("score")
-		res.Unwrap()
-		if !res.IsNull() {
-			x1 := res.Int64()
-			x0.Score.Set(x1)
-		}
-
-		res.SeekItem("updated")
-		res.Unwrap()
-		if !res.IsNull() {
-			x1 := res.Timestamp()
-			err := (*ydb.Time)(&x0.Updated).FromTimestamp(x1)
-			if err != nil {
-				panic("ydbgen: date type conversion failed: " + err.Error())
-			}
-		}
+		var u User
+		res.ScanWithDefaults(&u.ID, &u.Username, &u.Mode, &u.Magic, &u.Score, &u.Updated)
 
 		if res.Err() == nil {
-			*us = append(*us, x0)
+			*us = append(*us, u)
 		}
 	}
 	return res.Err()
@@ -300,24 +212,15 @@ func (us Users) ListValue() ydb.Value {
 				var v6 ydb.Value
 				{
 					var v7 ydb.Value
-					x0, ok0 := item0.Score.Get()
-					if ok0 {
-						v7 = ydb.OptionalValue(ydb.Int64Value(x0))
-					} else {
-						v7 = ydb.NullValue(ydb.TypeInt64)
-					}
+					v7 = ydb.OptionalValue(ydb.Int64Value(item0.Score))
 					v6 = v7
 				}
 				var v7 ydb.Value
 				{
 					var v8 ydb.Value
-					var x0 uint64
 					ok0 := !item0.Updated.IsZero()
 					if ok0 {
-						x0 = ydb.Time(item0.Updated).Timestamp()
-					}
-					if ok0 {
-						v8 = ydb.OptionalValue(ydb.TimestampValue(x0))
+						v8 = ydb.OptionalValue(ydb.TimestampValueFromTime(item0.Updated))
 					} else {
 						v8 = ydb.NullValue(ydb.TypeTimestamp)
 					}
@@ -390,23 +293,32 @@ func (us Users) ListValue() ydb.Value {
 	return list0
 }
 
+type users struct {
+	dst *[]string
+}
+
+func newUsers(dst *[]string) *users {
+	return &users{dst}
+}
+
+func (u *users) UnmarshalYDB(res ydb.RawValue) error {
+	n0 := res.ListIn()
+	xs0 := make([]string, n0)
+	for i0 := 0; i0 < n0; i0++ {
+		res.ListItem(i0)
+		var x1 string
+		x1 = res.UTF8()
+		xs0[i0] = x1
+	}
+	*u.dst = xs0
+	res.ListOut()
+	return res.Err()
+}
+
 func (ms *MagicUsersList) Scan(res *table.Result) (err error) {
 	for res.NextRow() {
 		var x0 MagicUsers
-		res.NextItem()
-		x0.Magic = uint(res.OUint32())
-
-		res.NextItem()
-		n0 := res.ListIn()
-		xs0 := make([]string, n0)
-		for i0 := 0; i0 < n0; i0++ {
-			res.ListItem(i0)
-			var x1 string
-			x1 = res.UTF8()
-			xs0[i0] = x1
-		}
-		x0.Users = xs0
-		res.ListOut()
+		res.ScanWithDefaults(&x0.Magic, newUsers(&x0.Users))
 
 		if res.Err() == nil {
 			*ms = append(*ms, x0)

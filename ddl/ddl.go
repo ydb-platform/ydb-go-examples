@@ -4,11 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 
 	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 )
 
 var (
@@ -78,7 +79,7 @@ func (cmd *Command) ExportFlags(context.Context, *flag.FlagSet) {}
 func executeQuery(ctx context.Context, sp *table.SessionPool, prefix string, query string) (err error) {
 	err = table.Retry(ctx, sp,
 		table.OperationFunc(func(ctx context.Context, s *table.Session) error {
-			err := s.ExecuteSchemeQuery(ctx, fmt.Sprintf(query, prefix))
+			err = s.ExecuteSchemeQuery(ctx, fmt.Sprintf(query, prefix))
 			return err
 		}),
 	)
@@ -100,7 +101,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	if err != nil {
 		return fmt.Errorf("connect error: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	//simple creation with composite primary key
 	err = executeQuery(ctx, db.Table().Pool(), params.Prefix(), simpleCreateQuery)

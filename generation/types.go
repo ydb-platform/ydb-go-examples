@@ -3,8 +3,6 @@ package main
 import (
 	_ "strconv"
 	"time"
-
-	"github.com/ydb-platform/ydb-go-sdk/v3/opt"
 )
 
 //go:generate ydbgen
@@ -14,9 +12,9 @@ import (
 type User struct {
 	ID       uint64
 	Username string
-	Mode     uint8     `ydb:"type:uint64?,conv:assert"`
+	Mode     uint64    `ydb:"type:uint64?,conv:assert"`
 	Magic    uint      `ydb:"type:uint32?,conv:unsafe"`
-	Score    opt.Int64 `ydb:"type:int64?"`
+	Score    int64     `ydb:"type:int64?"`
 	Updated  time.Time `ydb:"type:timestamp?"`
 	Data     []byte    `ydb:"-"`
 }

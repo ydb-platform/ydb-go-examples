@@ -5,14 +5,15 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"log"
 	"text/template"
 
-	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+
+	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
 
 var query = template.Must(template.New("fill database").Parse(`
@@ -57,8 +58,7 @@ type Command struct {
 type exampleStruct struct {
 }
 
-func (*exampleStruct) UnmarshalYDB(res ydb.RawScanner) error {
-	res.NextItem()
+func (*exampleStruct) UnmarshalYDB(res ydb.RawValue) error {
 	log.Printf("T: %s", res.Type())
 	for i, n := 0, res.StructIn(); i < n; i++ {
 		name := res.StructField(i)
@@ -66,28 +66,26 @@ func (*exampleStruct) UnmarshalYDB(res ydb.RawScanner) error {
 		log.Printf("(struct): %s: %d", name, val)
 	}
 	res.StructOut()
-	return nil
+	return res.Err()
 }
 
 type exampleList struct {
 }
 
-func (*exampleList) UnmarshalYDB(res ydb.RawScanner) error {
-	res.NextItem()
+func (*exampleList) UnmarshalYDB(res ydb.RawValue) error {
 	log.Printf("T: %s", res.Type())
 	for i, n := 0, res.ListIn(); i < n; i++ {
 		res.ListItem(i)
 		log.Printf("(list) %q: %s", res.Path(), res.String())
 	}
 	res.ListOut()
-	return nil
+	return res.Err()
 }
 
 type exampleTuple struct {
 }
 
-func (*exampleTuple) UnmarshalYDB(res ydb.RawScanner) error {
-	res.NextItem()
+func (*exampleTuple) UnmarshalYDB(res ydb.RawValue) error {
 	log.Printf("T: %s", res.Type())
 	for i, n := 0, res.TupleIn(); i < n; i++ {
 		res.TupleItem(i)
@@ -106,14 +104,13 @@ func (*exampleTuple) UnmarshalYDB(res ydb.RawScanner) error {
 		}
 	}
 	res.TupleOut()
-	return nil
+	return res.Err()
 }
 
 type exampleDict struct {
 }
 
-func (*exampleDict) UnmarshalYDB(res ydb.RawScanner) error {
-	res.NextItem()
+func (*exampleDict) UnmarshalYDB(res ydb.RawValue) error {
 	log.Printf("T: %s", res.Type())
 	for i, n := 0, res.DictIn(); i < n; i++ {
 		res.DictKey(i)
@@ -125,14 +122,13 @@ func (*exampleDict) UnmarshalYDB(res ydb.RawScanner) error {
 		log.Printf("(dict) %q: %s: %d", res.Path(), key, val)
 	}
 	res.DictOut()
-	return nil
+	return res.Err()
 }
 
 type variantStruct struct {
 }
 
-func (*variantStruct) UnmarshalYDB(res ydb.RawScanner) error {
-	res.NextItem()
+func (*variantStruct) UnmarshalYDB(res ydb.RawValue) error {
 	log.Printf("T: %s", res.Type())
 	name, index := res.Variant()
 	var x interface{}
@@ -148,14 +144,13 @@ func (*variantStruct) UnmarshalYDB(res ydb.RawScanner) error {
 		"(struct variant): %s %s %q %d = %v",
 		res.Path(), res.Type(), name, index, x,
 	)
-	return nil
+	return res.Err()
 }
 
 type variantTuple struct {
 }
 
-func (*variantTuple) UnmarshalYDB(res ydb.RawScanner) error {
-	res.NextItem()
+func (*variantTuple) UnmarshalYDB(res ydb.RawValue) error {
 	log.Printf("T: %s", res.Type())
 	name, index := res.Variant()
 	var x interface{}
@@ -171,7 +166,7 @@ func (*variantTuple) UnmarshalYDB(res ydb.RawScanner) error {
 		"(tuple variant): %s %s %q %d = %v",
 		res.Path(), res.Type(), name, index, x,
 	)
-	return nil
+	return res.Err()
 }
 
 func (cmd *Command) ExportFlags(context.Context, *flag.FlagSet) {}
@@ -179,7 +174,7 @@ func (cmd *Command) ExportFlags(context.Context, *flag.FlagSet) {}
 func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	connectCtx, cancel := context.WithTimeout(ctx, params.ConnectTimeout)
 	defer cancel()
-		db, err := connect.New(
+	db, err := connect.New(
 		connectCtx,
 		params.ConnectParams,
 		environ.WithEnvironCredentials(ctx),
@@ -188,7 +183,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	if err != nil {
 		return fmt.Errorf("connect error: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	session, err := db.Table().CreateSession(ctx)
 	if err != nil {
@@ -218,30 +213,33 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 
 	parsers := [...]func(){
 		func() {
-			_ = res.ScanRaw(&exampleList{})
+			_ = res.Scan(&exampleList{})
 		},
 		func() {
-			_ = res.ScanRaw(&exampleTuple{})
+			_ = res.Scan(&exampleTuple{})
 		},
 		func() {
-			_ = res.ScanRaw(&exampleDict{})
+			_ = res.Scan(&exampleDict{})
 		},
 		func() {
-			_ = res.ScanRaw(&exampleStruct{})
+			_ = res.Scan(&exampleStruct{})
 		},
 		func() {
-			_ = res.ScanRaw(&variantStruct{})
+			_ = res.Scan(&variantStruct{})
 		},
 		func() {
-			_ = res.ScanRaw(&variantTuple{})
+			_ = res.Scan(&variantTuple{})
 		},
 	}
 
-	for set := 0; res.NextSet(); set++ {
+	for set := 0; res.NextResultSet(ctx); set++ {
 		res.NextRow()
 		parsers[set]()
+		if err = res.Err(); err != nil {
+			return err
+		}
 	}
-	if err := res.Err(); err != nil {
+	if err = res.Err(); err != nil {
 		return err
 	}
 

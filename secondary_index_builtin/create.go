@@ -23,7 +23,7 @@ func doCreate(
 			opts: []table.CreateTableOption{
 				table.WithColumn("series_id", ydb.Optional(ydb.TypeUint64)),
 				table.WithColumn("title", ydb.Optional(ydb.TypeUTF8)),
-				table.WithColumn("info", ydb.Optional(ydb.TypeUTF8)),
+				table.WithColumn("series_info", ydb.Optional(ydb.TypeUTF8)),
 				table.WithColumn("release_date", ydb.Optional(ydb.TypeDatetime)),
 				table.WithColumn("views", ydb.Optional(ydb.TypeUint64)),
 				table.WithColumn("uploaded_user_id", ydb.Optional(ydb.TypeUint64)),

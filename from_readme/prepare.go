@@ -119,12 +119,12 @@ func render(t *template.Template, data interface{}) string {
 	return buf.String()
 }
 
-func seasonData(customerID, orderID uint64, description string, date uint32) ydb.Value {
+func seasonData(customerID, orderID uint64, description string, date time.Time) ydb.Value {
 	return ydb.StructValue(
 		ydb.StructFieldValue("customer_id", ydb.Uint64Value(customerID)),
 		ydb.StructFieldValue("order_id", ydb.Uint64Value(orderID)),
 		ydb.StructFieldValue("description", ydb.UTF8Value(description)),
-		ydb.StructFieldValue("order_date", ydb.DateValue(date)),
+		ydb.StructFieldValue("order_date", ydb.DateValueFromTime(date)),
 	)
 }
 
@@ -144,17 +144,12 @@ func getSeasonsData() ydb.Value {
 	)
 }
 
-const DateISO8601 = "2006-01-02"
+const dateISO8601 = "2006-01-02"
 
-func days(date string) uint32 {
-	t, err := time.Parse(DateISO8601, date)
+func days(date string) time.Time {
+	t, err := time.Parse(dateISO8601, date)
 	if err != nil {
 		panic(err)
 	}
-	return ydb.Time(t).Date()
-}
-
-func intToStringDate(orderDate uint32) string {
-	date := time.Unix(int64(orderDate)*24*60*60, 0)
-	return date.Format(DateISO8601)
+	return t
 }

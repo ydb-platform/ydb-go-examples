@@ -5,17 +5,17 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"hash/fnv"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 	"text/template"
 	"time"
 
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 )
 
 const (
@@ -89,7 +89,7 @@ var (
 </html>`
 
 	short = regexp.MustCompile(`[a-zA-Z0-9]`)
-	long  = regexp.MustCompile(`https?://(?:[-\w.]|(?:%[\da-fA-F]{2}))+`)
+	long  = regexp.MustCompile(`https?://(?:[-\w.]|%[\da-fA-F]{2})+`)
 )
 
 func Hash(s string) (string, error) {
@@ -127,10 +127,10 @@ type service struct {
 	db       *connect.Connection
 }
 
-func NewService(ctx context.Context, connectParams connect.ConnectParams, connectTimeout time.Duration) (h *service, err error) {
+func newService(ctx context.Context, connectParams connect.ConnectParams, connectTimeout time.Duration) (h *service, err error) {
 	connectCtx, cancel := context.WithTimeout(ctx, connectTimeout)
 	defer cancel()
-	db, err := connect.New(connectCtx, connectParams)
+	db, err := connect.New(connectCtx, connectParams, environ.WithEnvironCredentials(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("connect error: %w", err)
 	}
@@ -140,14 +140,14 @@ func NewService(ctx context.Context, connectParams connect.ConnectParams, connec
 	}
 	err = h.createTable(ctx)
 	if err != nil {
-		db.Close()
+		defer func() { _ = db.Close() }()
 		return nil, fmt.Errorf("error on create table: %w", err)
 	}
 	return h, nil
 }
 
 func (s *service) Close() {
-	s.db.Close()
+	defer func() { _ = s.db.Close() }()
 }
 
 func (s *service) createTable(ctx context.Context) (err error) {
@@ -260,11 +260,11 @@ func (s *service) selectLong(ctx context.Context, hash string) (url string, err 
 	defer func() {
 		_ = res.Close()
 	}()
-	for res.NextSet() {
+	var src string
+	for res.NextResultSet(ctx) {
 		for res.NextRow() {
-			if res.SeekItem("src") {
-				return res.OUTF8(), nil
-			}
+			err = res.ScanWithDefaults(&src)
+			return src, err
 		}
 	}
 	return "", fmt.Errorf(hashNotFound, hash)
@@ -292,7 +292,7 @@ func (s *service) Router(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/text")
-		protocol := "http://"
+		protocol := "https://"
 		if r.TLS == nil {
 			protocol = "http://"
 		}
@@ -309,14 +309,4 @@ func (s *service) Router(w http.ResponseWriter, r *http.Request) {
 		}
 		http.Redirect(w, r, url, http.StatusSeeOther)
 	}
-}
-
-// Serverless is an entrypoint for serverless yandex function
-func Serverless(w http.ResponseWriter, r *http.Request) {
-	service, err := NewService(r.Context(), connect.MustConnectionString(os.Getenv("YDB")), time.Second)
-	if err != nil {
-		writeResponse(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	service.Router(w, r)
 }

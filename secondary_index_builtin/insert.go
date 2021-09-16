@@ -20,7 +20,7 @@ func doInsert(
 		DECLARE $seriesData AS List<Struct<
 		    series_id: Uint64?,
 		    title: Utf8?,
-		    info: Utf8?,
+		    series_info: Utf8?,
 		    release_date: Datetime?,
 		    views: Uint64?,
 		    uploaded_user_id: Uint64?>>;
@@ -35,7 +35,7 @@ func doInsert(
 		SELECT
 		    series_id,
 		    title,
-		    info,
+		    series_info,
 		    release_date,
 		    views,
 		    uploaded_user_id
@@ -168,10 +168,10 @@ var users = UsersList{
 	},
 }
 
-const TimeISO8601 = "2006-01-02"
+const timeISO8601 = "2006-01-02"
 
 func parseISO8601(date string) time.Time {
-	t, err := time.Parse(TimeISO8601, date)
+	t, err := time.Parse(timeISO8601, date)
 	if err != nil {
 		panic(err)
 	}

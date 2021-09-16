@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"math/rand"
 	"strconv"
 	"time"
 
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 )
 
@@ -91,7 +91,7 @@ func insertSeriesWorker(ctx context.Context, sp *table.SessionPool, prefix strin
 						table.ValueParam("$seriesId", ydb.Uint64Value(j.ID)),
 						table.ValueParam("$title", ydb.UTF8Value(j.Title)),
 						table.ValueParam("$seriesInfo", ydb.UTF8Value(j.Info)),
-						table.ValueParam("$releaseDate", ydb.DatetimeValue(ydb.Time(j.ReleaseDate).Datetime())),
+						table.ValueParam("$releaseDate", ydb.DatetimeValueFromTime(j.ReleaseDate)),
 						table.ValueParam("$views", ydb.Uint64Value(j.Views)),
 					))
 				return err

@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"os"
 	"strconv"
 	"text/tabwriter"
 
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 )
 
@@ -35,7 +35,7 @@ func doList(
 	if err != nil {
 		return err
 	}
-	if res.NextSet() {
+	if res.NextResultSet(ctx, "series_id", "title", "series_info", "release_date", "views") {
 		series := SeriesList{}
 		err = series.Scan(res)
 		if err != nil {
@@ -78,7 +78,7 @@ func doListViews(
 	if err != nil {
 		return err
 	}
-	if res.NextSet() {
+	if res.NextResultSet(ctx) {
 		series := SeriesList{}
 		err = series.Scan(res)
 		if err != nil {
@@ -266,7 +266,7 @@ func parsListArgs(args []string) (r map[string]uint64, err error) {
 
 func printSeries(series SeriesList) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-	defer w.Flush()
+	defer func() { _ = w.Flush() }()
 
 	_, _ = fmt.Fprintln(w, "series_id\ttitle\trelease_date\tinfo\tviews")
 	for _, s := range series {

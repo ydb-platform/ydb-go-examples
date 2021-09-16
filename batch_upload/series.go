@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"hash/fnv"
 	"net/url"
 	"os"
@@ -12,10 +11,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+
+	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
 
 type Command struct {
@@ -41,11 +42,11 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	if err != nil {
 		return fmt.Errorf("connect error: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
+	tableName := "upload_example"
+	name := path.Join(params.Prefix(), tableName)
 
-	name := path.Join(params.Prefix(), "upload_example")
-
-	err = db.CleanupDatabase(ctx, params.Prefix(), "upload_example")
+	err = db.CleanupDatabase(ctx, params.Prefix(), tableName)
 	if err != nil {
 		return err
 	}
@@ -62,14 +63,14 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	// make input generator of count
 	query := fmt.Sprintf(`
 		DECLARE $items AS
-			'List<Struct<
+			List<Struct<
 				host_uid: Uint64?,
 				url_uid: Uint64?,
 				url: Utf8?,
-				page: Utf8?>>';
+				page: Utf8?>>;
 
-		REPLACE INTO [%v]
-			SELECT * FROM AS_TABLE($items);`, name)
+		REPLACE INTO %v
+			SELECT * FROM AS_TABLE($items);`, tableName)
 	packSize := 11
 	t := initTracker(cmd.count, cmd.infly)
 	jobs := make(chan ItemList)
@@ -84,11 +85,12 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	t.respondSignal(syscall.SIGUSR1)
 
 	jobsCount := 0
+	var item *Item
 loop:
 	for i := 0; i < cmd.count; {
 		pack := ItemList{}
 		for ; i < cmd.count && len(pack) < packSize; i++ {
-			item, err := generateItem(i)
+			item, err = generateItem(i)
 			if err != nil {
 				return err
 			}

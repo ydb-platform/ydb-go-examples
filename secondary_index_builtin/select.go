@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"os"
 	"strconv"
 	"text/tabwriter"
 
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 )
 
@@ -25,12 +25,12 @@ func doSelect(
 		SELECT
 			series_id,
 			title,
-			info,
+			series_info,
 			release_date,
 			views,
 			uploaded_user_id
 		FROM
-			` + "`series`" + `:views_index
+			series view views_index
 		WHERE
 			views >= $minViews
 	`
@@ -48,7 +48,7 @@ func doSelect(
 	if err != nil {
 		return err
 	}
-	if !res.NextSet() {
+	if !res.NextResultSet(ctx, "series_id", "title", "series_info", "release_date", "views", "uploaded_user_id") {
 		return nil
 	}
 
@@ -76,14 +76,14 @@ func doSelectJoin(
         SELECT
 			t1.series_id,
 			t1.title,
-			t1.info,
+			t1.series_info,
 			t1.release_date,
 			t1.views,
 			t1.uploaded_user_id
         FROM
-			` + "`series`" + `:users_index AS t1
+			series view users_index AS t1
         INNER JOIN
-			` + "`users`" + `:name_index AS t2
+			users view name_index AS t2
 			ON t1.uploaded_user_id == t2.user_id
         WHERE
 			t2.name == $userName;
@@ -99,10 +99,12 @@ func doSelectJoin(
 	if err != nil {
 		return err
 	}
-	if !res.NextSet() {
+	if !res.NextResultSet(ctx, "t1.series_id", "t1.title", "t1.series_info", "t1.release_date", "t1.views", "t1.uploaded_user_id") {
 		return nil
 	}
-
+	if err != nil {
+		return err
+	}
 	var series SeriesList
 	err = (&series).Scan(res)
 	if err != nil {
@@ -142,14 +144,13 @@ func execSelect(
 
 func printSeries(series SeriesList) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 1, ' ', 0)
-	defer w.Flush()
-
+	defer func() { _ = w.Flush() }()
 	_, _ = fmt.Fprintln(w, "series_id\ttitle\trelease_date\tinfo\tviews\tuploaded_user_id")
 	for _, s := range series {
 		_, _ = fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%d\t%d\n",
 			s.ID,
 			s.Title,
-			s.ReleaseDate.Format(TimeISO8601),
+			s.ReleaseDate.Format(timeISO8601),
 			s.Info,
 			s.Views,
 			s.UploadedUserID,
