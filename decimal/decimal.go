@@ -11,9 +11,9 @@ import (
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
-	"github.com/ydb-platform/ydb-go-sdk/v3/decimal"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 
 	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
@@ -44,19 +44,12 @@ SELECT value FROM decimals;
 type Command struct {
 }
 
-type exampleDecimal [16]byte
-
-func (s *exampleDecimal) UnmarshalYDB(res ydb.RawValue) error {
-	*s = res.ODecimal(ydb.DefaultDecimal)
-	return res.Err()
-}
-
 func (cmd *Command) ExportFlags(context.Context, *flag.FlagSet) {}
 
 func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	connectCtx, cancel := context.WithTimeout(ctx, params.ConnectTimeout)
 	defer cancel()
-	db, err := connect.New(
+	db, err := ydb.New(
 		connectCtx,
 		params.ConnectParams,
 		environ.WithEnvironCredentials(ctx),
@@ -80,9 +73,9 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 		tablePath       = path.Join(tablePathPrefix, "decimals")
 	)
 	err = session.CreateTable(ctx, tablePath,
-		table.WithColumn("id", ydb.Optional(ydb.TypeUint32)),
-		table.WithColumn("value", ydb.Optional(ydb.DefaultDecimal)),
-		table.WithPrimaryKeyColumn("id"),
+		options.WithColumn("id", types.Optional(types.TypeUint32)),
+		options.WithColumn("value", types.Optional(types.DefaultDecimal)),
+		options.WithPrimaryKeyColumn("id"),
 	)
 	if err != nil {
 		return err
@@ -113,13 +106,10 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 
 	_, _, err = write.Execute(ctx, txc, table.NewQueryParameters(
 		table.ValueParam("$decimals",
-			ydb.ListValue(
-				ydb.StructValue(
-					ydb.StructFieldValue("id", ydb.Uint32Value(42)),
-					ydb.StructFieldValue("value", ydb.DecimalValue(
-						ydb.DefaultDecimal,
-						decimal.Int128(x, 22, 9),
-					)),
+			types.ListValue(
+				types.StructValue(
+					types.StructFieldValue("id", types.Uint32Value(42)),
+					types.StructFieldValue("value", types.DecimalValueFromBigInt(x, 22, 9)),
 				),
 			),
 		),
@@ -132,7 +122,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	if err != nil {
 		return err
 	}
-	var p exampleDecimal
+	var p *types.Decimal
 	for res.NextResultSet(ctx) {
 		for res.NextRow() {
 			err = res.Scan(&p)
@@ -140,8 +130,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 				return err
 			}
 
-			x = decimal.FromInt128(p, 22, 9)
-			fmt.Println(decimal.Format(x, 22, 9))
+			fmt.Println(p.String())
 		}
 	}
 	return res.Err()

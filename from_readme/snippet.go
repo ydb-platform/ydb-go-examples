@@ -7,8 +7,8 @@ import (
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 
 	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
@@ -19,7 +19,7 @@ type Command struct {
 func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	connectCtx, cancel := context.WithTimeout(ctx, params.ConnectTimeout)
 	defer cancel()
-	db, err := connect.New(
+	db, err := ydb.New(
 		connectCtx,
 		params.ConnectParams,
 		environ.WithEnvironCredentials(ctx),
@@ -67,7 +67,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 			SELECT 42 as id, $mystr as mystr;
 		`,
 		table.NewQueryParameters(
-			table.ValueParam("$mystr", ydb.OptionalValue(ydb.UTF8Value("test"))),
+			table.ValueParam("$mystr", types.OptionalValue(types.UTF8Value("test"))),
 		),
 	)
 	if err != nil {

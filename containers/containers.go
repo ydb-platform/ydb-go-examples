@@ -10,8 +10,8 @@ import (
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 
 	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
@@ -58,7 +58,7 @@ type Command struct {
 type exampleStruct struct {
 }
 
-func (*exampleStruct) UnmarshalYDB(res ydb.RawValue) error {
+func (*exampleStruct) UnmarshalYDB(res types.RawValue) error {
 	log.Printf("T: %s", res.Type())
 	for i, n := 0, res.StructIn(); i < n; i++ {
 		name := res.StructField(i)
@@ -72,7 +72,7 @@ func (*exampleStruct) UnmarshalYDB(res ydb.RawValue) error {
 type exampleList struct {
 }
 
-func (*exampleList) UnmarshalYDB(res ydb.RawValue) error {
+func (*exampleList) UnmarshalYDB(res types.RawValue) error {
 	log.Printf("T: %s", res.Type())
 	for i, n := 0, res.ListIn(); i < n; i++ {
 		res.ListItem(i)
@@ -85,7 +85,7 @@ func (*exampleList) UnmarshalYDB(res ydb.RawValue) error {
 type exampleTuple struct {
 }
 
-func (*exampleTuple) UnmarshalYDB(res ydb.RawValue) error {
+func (*exampleTuple) UnmarshalYDB(res types.RawValue) error {
 	log.Printf("T: %s", res.Type())
 	for i, n := 0, res.TupleIn(); i < n; i++ {
 		res.TupleItem(i)
@@ -110,7 +110,7 @@ func (*exampleTuple) UnmarshalYDB(res ydb.RawValue) error {
 type exampleDict struct {
 }
 
-func (*exampleDict) UnmarshalYDB(res ydb.RawValue) error {
+func (*exampleDict) UnmarshalYDB(res types.RawValue) error {
 	log.Printf("T: %s", res.Type())
 	for i, n := 0, res.DictIn(); i < n; i++ {
 		res.DictKey(i)
@@ -128,7 +128,7 @@ func (*exampleDict) UnmarshalYDB(res ydb.RawValue) error {
 type variantStruct struct {
 }
 
-func (*variantStruct) UnmarshalYDB(res ydb.RawValue) error {
+func (*variantStruct) UnmarshalYDB(res types.RawValue) error {
 	log.Printf("T: %s", res.Type())
 	name, index := res.Variant()
 	var x interface{}
@@ -150,7 +150,7 @@ func (*variantStruct) UnmarshalYDB(res ydb.RawValue) error {
 type variantTuple struct {
 }
 
-func (*variantTuple) UnmarshalYDB(res ydb.RawValue) error {
+func (*variantTuple) UnmarshalYDB(res types.RawValue) error {
 	log.Printf("T: %s", res.Type())
 	name, index := res.Variant()
 	var x interface{}
@@ -174,7 +174,7 @@ func (cmd *Command) ExportFlags(context.Context, *flag.FlagSet) {}
 func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	connectCtx, cancel := context.WithTimeout(ctx, params.ConnectTimeout)
 	defer cancel()
-	db, err := connect.New(
+	db, err := ydb.New(
 		connectCtx,
 		params.ConnectParams,
 		environ.WithEnvironCredentials(ctx),

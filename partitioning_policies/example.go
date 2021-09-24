@@ -5,14 +5,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-
 	"log"
 	"path"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 
 	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
@@ -28,19 +28,19 @@ func wrap(err error, explanation string) error {
 	return err
 }
 
-func (cmd *Command) testUniformPartitions(ctx context.Context, sp table.SessionProvider) error {
+func (cmd *Command) testUniformPartitions(ctx context.Context, c table.Client) error {
 	log.Printf("Create table: %v\n", cmd.table)
 
-	return wrap(table.Retry(ctx, sp, table.OperationFunc(func(ctx context.Context, session *table.Session) error {
+	err, _ := c.Retry(ctx, false, func(ctx context.Context, session table.Session) error {
 		err := session.CreateTable(ctx, cmd.table,
-			table.WithColumn("key", ydb.Optional(ydb.TypeUint64)),
-			table.WithColumn("value", ydb.Optional(ydb.TypeJSON)),
-			table.WithPrimaryKeyColumn("key"),
+			options.WithColumn("key", types.Optional(types.TypeUint64)),
+			options.WithColumn("value", types.Optional(types.TypeJSON)),
+			options.WithPrimaryKeyColumn("key"),
 
-			table.WithProfile(
-				table.WithPartitioningPolicy(
-					table.WithPartitioningPolicyMode(table.PartitioningAutoSplitMerge),
-					table.WithPartitioningPolicyUniformPartitions(4),
+			options.WithProfile(
+				options.WithPartitioningPolicy(
+					options.WithPartitioningPolicyMode(options.PartitioningAutoSplitMerge),
+					options.WithPartitioningPolicyUniformPartitions(4),
 				),
 			),
 		)
@@ -48,7 +48,7 @@ func (cmd *Command) testUniformPartitions(ctx context.Context, sp table.SessionP
 			return wrap(err, "failed to create table")
 		}
 
-		desc, err := session.DescribeTable(ctx, cmd.table, table.WithShardKeyBounds())
+		desc, err := session.DescribeTable(ctx, cmd.table, options.WithShardKeyBounds())
 		if err != nil {
 			return wrap(err, "failed to get table description")
 		}
@@ -57,24 +57,25 @@ func (cmd *Command) testUniformPartitions(ctx context.Context, sp table.SessionP
 		}
 
 		return nil
-	})), "failed to execute operation")
+	})
+	return wrap(err, "failed to execute operation")
 }
 
-func (cmd *Command) testExplicitPartitions(ctx context.Context, sp table.SessionProvider) error {
+func (cmd *Command) testExplicitPartitions(ctx context.Context, c table.Client) error {
 	log.Printf("Create table: %v\n", cmd.table)
 
-	return wrap(table.Retry(ctx, sp, table.OperationFunc(func(ctx context.Context, session *table.Session) error {
+	err, _ := c.Retry(ctx, false, func(ctx context.Context, session table.Session) error {
 		err := session.CreateTable(ctx, cmd.table,
-			table.WithColumn("key", ydb.Optional(ydb.TypeUint64)),
-			table.WithColumn("value", ydb.Optional(ydb.TypeJSON)),
-			table.WithPrimaryKeyColumn("key"),
+			options.WithColumn("key", types.Optional(types.TypeUint64)),
+			options.WithColumn("value", types.Optional(types.TypeJSON)),
+			options.WithPrimaryKeyColumn("key"),
 
-			table.WithProfile(
-				table.WithPartitioningPolicy(
-					table.WithPartitioningPolicyExplicitPartitions(
-						ydb.TupleValue(ydb.OptionalValue(ydb.Uint64Value(100))),
-						ydb.TupleValue(ydb.OptionalValue(ydb.Uint64Value(300))),
-						ydb.TupleValue(ydb.OptionalValue(ydb.Uint64Value(400))),
+			options.WithProfile(
+				options.WithPartitioningPolicy(
+					options.WithPartitioningPolicyExplicitPartitions(
+						types.TupleValue(types.OptionalValue(types.Uint64Value(100))),
+						types.TupleValue(types.OptionalValue(types.Uint64Value(300))),
+						types.TupleValue(types.OptionalValue(types.Uint64Value(400))),
 					),
 				),
 			),
@@ -83,7 +84,7 @@ func (cmd *Command) testExplicitPartitions(ctx context.Context, sp table.Session
 			return wrap(err, "failed to create table")
 		}
 
-		desc, err := session.DescribeTable(ctx, cmd.table, table.WithShardKeyBounds())
+		desc, err := session.DescribeTable(ctx, cmd.table, options.WithShardKeyBounds())
 		if err != nil {
 			return wrap(err, "failed to get table description")
 		}
@@ -92,13 +93,14 @@ func (cmd *Command) testExplicitPartitions(ctx context.Context, sp table.Session
 		}
 
 		return nil
-	})), "failed to execute operation")
+	})
+	return wrap(err, "failed to execute operation")
 }
 
 func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	connectCtx, cancel := context.WithTimeout(ctx, params.ConnectTimeout)
 	defer cancel()
-	db, err := connect.New(
+	db, err := ydb.New(
 		connectCtx,
 		params.ConnectParams,
 		environ.WithEnvironCredentials(ctx),
@@ -112,25 +114,25 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	tableName := cmd.table
 	cmd.table = path.Join(params.Prefix(), cmd.table)
 
-	err = db.CleanupDatabase(ctx, params.Prefix(), tableName)
+	err = db.Scheme().CleanupDatabase(ctx, params.Prefix(), tableName)
 	if err != nil {
 		return err
 	}
-	err = db.EnsurePathExists(ctx, params.Prefix())
+	err = db.Scheme().EnsurePathExists(ctx, params.Prefix())
 	if err != nil {
 		return err
 	}
 
-	if err = cmd.testUniformPartitions(ctx, db.Table().Pool()); err != nil {
+	if err = cmd.testUniformPartitions(ctx, db.Table()); err != nil {
 		return wrap(err, "failed to test uniform partitions")
 	}
 
-	err = db.CleanupDatabase(ctx, params.Prefix(), tableName)
+	err = db.Scheme().CleanupDatabase(ctx, params.Prefix(), tableName)
 	if err != nil {
 		return err
 	}
 
-	if err := cmd.testExplicitPartitions(ctx, db.Table().Pool()); err != nil {
+	if err := cmd.testExplicitPartitions(ctx, db.Table()); err != nil {
 		return wrap(err, "failed to test explicit partitions")
 	}
 

@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
+	"os"
 	"path"
 	"text/template"
 	"time"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
 type templateConfig struct {
@@ -33,52 +36,52 @@ SELECT
 FROM AS_TABLE($ordersData);
 `))
 
-func prepareScheme(ctx context.Context, db *connect.Connection, prefix string) (err error) {
-	err = db.CleanupDatabase(ctx, prefix, "orders")
+func prepareScheme(ctx context.Context, db ydb.Connection, prefix string) (err error) {
+	err = db.Scheme().CleanupDatabase(ctx, prefix, "orders")
 	if err != nil {
 		return err
 	}
-	err = db.EnsurePathExists(ctx, prefix)
+	err = db.Scheme().EnsurePathExists(ctx, prefix)
 	if err != nil {
 		return err
 	}
 
-	err = createTables(ctx, db.Table().Pool(), prefix)
+	err = createTables(ctx, db.Table(), prefix)
 	if err != nil {
 		return fmt.Errorf("create tables error: %w", err)
 	}
 	return nil
 }
 
-func prepareData(ctx context.Context, db *connect.Connection, prefix string) (err error) {
-	err = fillTablesWithData(ctx, db.Table().Pool(), prefix)
+func prepareData(ctx context.Context, db ydb.Connection, prefix string) (err error) {
+	err = fillTablesWithData(ctx, db.Table(), prefix)
 	if err != nil {
 		return fmt.Errorf("fill tables with data error: %w", err)
 	}
 	return nil
 }
 
-func createTables(ctx context.Context, sessionPool *table.SessionPool, prefix string) (err error) {
-	err = table.Retry(ctx, sessionPool,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) error {
+func createTables(ctx context.Context, c table.Client, prefix string) (err error) {
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) error {
 			return s.CreateTable(ctx, path.Join(prefix, "orders"),
-				table.WithColumn("customer_id", ydb.Optional(ydb.TypeUint64)),
-				table.WithColumn("order_id", ydb.Optional(ydb.TypeUint64)),
-				table.WithColumn("description", ydb.Optional(ydb.TypeUTF8)),
-				table.WithColumn("order_date", ydb.Optional(ydb.TypeDate)),
-				table.WithPrimaryKeyColumn("customer_id", "order_id"),
+				options.WithColumn("customer_id", types.Optional(types.TypeUint64)),
+				options.WithColumn("order_id", types.Optional(types.TypeUint64)),
+				options.WithColumn("description", types.Optional(types.TypeUTF8)),
+				options.WithColumn("order_date", types.Optional(types.TypeDate)),
+				options.WithPrimaryKeyColumn("customer_id", "order_id"),
 				//For sorting demonstration
-				table.WithProfile(
-					table.WithPartitioningPolicy(
-						table.WithPartitioningPolicyExplicitPartitions(
-							ydb.TupleValue(ydb.OptionalValue(ydb.Uint64Value(1))),
-							ydb.TupleValue(ydb.OptionalValue(ydb.Uint64Value(2))),
-							ydb.TupleValue(ydb.OptionalValue(ydb.Uint64Value(3))),
+				options.WithProfile(
+					options.WithPartitioningPolicy(
+						options.WithPartitioningPolicyExplicitPartitions(
+							types.TupleValue(types.OptionalValue(types.Uint64Value(1))),
+							types.TupleValue(types.OptionalValue(types.Uint64Value(2))),
+							types.TupleValue(types.OptionalValue(types.Uint64Value(3))),
 						),
 					),
 				),
 			)
-		}),
+		},
 	)
 	if err != nil {
 		return err
@@ -86,7 +89,7 @@ func createTables(ctx context.Context, sessionPool *table.SessionPool, prefix st
 	return nil
 }
 
-func fillTablesWithData(ctx context.Context, sp *table.SessionPool, prefix string) (err error) {
+func fillTablesWithData(ctx context.Context, c table.Client, prefix string) (err error) {
 	// Prepare write transaction.
 	writeTx := table.TxControl(
 		table.BeginTx(
@@ -94,8 +97,8 @@ func fillTablesWithData(ctx context.Context, sp *table.SessionPool, prefix strin
 		),
 		table.CommitTx(),
 	)
-	return table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) (err error) {
+	err, issues := c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) (err error) {
 			stmt, err := s.Prepare(ctx, render(fill, templateConfig{
 				TablePathPrefix: prefix,
 			}))
@@ -106,8 +109,16 @@ func fillTablesWithData(ctx context.Context, sp *table.SessionPool, prefix strin
 				table.ValueParam("$ordersData", getSeasonsData()),
 			))
 			return err
-		}),
-	)
+		})
+	if err != nil {
+		log.SetOutput(os.Stderr)
+		log.Printf("\n> fill tables issues:\n")
+		for _, e := range issues {
+			log.Printf("\t> %v\n", e)
+		}
+		return err
+	}
+	return err
 }
 
 func render(t *template.Template, data interface{}) string {
@@ -119,17 +130,17 @@ func render(t *template.Template, data interface{}) string {
 	return buf.String()
 }
 
-func seasonData(customerID, orderID uint64, description string, date time.Time) ydb.Value {
-	return ydb.StructValue(
-		ydb.StructFieldValue("customer_id", ydb.Uint64Value(customerID)),
-		ydb.StructFieldValue("order_id", ydb.Uint64Value(orderID)),
-		ydb.StructFieldValue("description", ydb.UTF8Value(description)),
-		ydb.StructFieldValue("order_date", ydb.DateValueFromTime(date)),
+func seasonData(customerID, orderID uint64, description string, date time.Time) types.Value {
+	return types.StructValue(
+		types.StructFieldValue("customer_id", types.Uint64Value(customerID)),
+		types.StructFieldValue("order_id", types.Uint64Value(orderID)),
+		types.StructFieldValue("description", types.UTF8Value(description)),
+		types.StructFieldValue("order_date", types.DateValueFromTime(date)),
 	)
 }
 
-func getSeasonsData() ydb.Value {
-	return ydb.ListValue(
+func getSeasonsData() types.Value {
+	return types.ListValue(
 		seasonData(1, 1, "Order 1", days("2006-02-03")),
 		seasonData(1, 2, "Order 2", days("2007-08-24")),
 		seasonData(1, 3, "Order 3", days("2008-11-21")),

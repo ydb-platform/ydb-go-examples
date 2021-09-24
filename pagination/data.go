@@ -1,17 +1,19 @@
 package main
 
-import "github.com/ydb-platform/ydb-go-sdk/v3"
+import (
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
+)
 
-func schoolData(city string, num uint32, addr string) ydb.Value {
-	return ydb.StructValue(
-		ydb.StructFieldValue("city", ydb.UTF8Value(city)),
-		ydb.StructFieldValue("number", ydb.Uint32Value(num)),
-		ydb.StructFieldValue("address", ydb.UTF8Value(addr)),
+func schoolData(city string, num uint32, addr string) types.Value {
+	return types.StructValue(
+		types.StructFieldValue("city", types.UTF8Value(city)),
+		types.StructFieldValue("number", types.Uint32Value(num)),
+		types.StructFieldValue("address", types.UTF8Value(addr)),
 	)
 }
 
-func getSchoolData() ydb.Value {
-	return ydb.ListValue(
+func getSchoolData() types.Value {
+	return types.ListValue(
 		schoolData("Орлов", 1, "Ст.Халтурина, 2"),
 		schoolData("Орлов", 2, "Свободы, 4"),
 		schoolData("Яранск", 1, "Гоголя, 25"),

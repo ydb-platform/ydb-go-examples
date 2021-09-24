@@ -3,57 +3,59 @@
 package main
 
 import (
-	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"strconv"
+
+	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/resultset"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
 var (
 	_ = strconv.Itoa
-	_ = ydb.StringValue
+	_ = types.StringValue
 	_ = table.NewQueryParameters
 )
 
-func (u *User) Scan(res *table.Result) (err error) {
+func (u *User) Scan(res resultset.Result) (err error) {
 	res.ScanWithDefaults(&u.ID, &u.Username, &u.Mode, &u.Magic, &u.Score, &u.Updated)
 	return res.Err()
 }
 
 func (u *User) QueryParameters() *table.QueryParameters {
-	var v0 ydb.Value
+	var v0 types.Value
 	{
-		vp0 := ydb.OptionalValue(ydb.Uint64Value(u.ID))
+		vp0 := types.OptionalValue(types.Uint64Value(u.ID))
 		v0 = vp0
 	}
-	var v1 ydb.Value
+	var v1 types.Value
 	{
-		vp0 := ydb.OptionalValue(ydb.UTF8Value(u.Username))
+		vp0 := types.OptionalValue(types.UTF8Value(u.Username))
 		v1 = vp0
 	}
-	var v2 ydb.Value
+	var v2 types.Value
 	{
-		vp0 := ydb.OptionalValue(ydb.Uint64Value(uint64(u.Mode)))
+		vp0 := types.OptionalValue(types.Uint64Value(uint64(u.Mode)))
 		v2 = vp0
 	}
-	var v3 ydb.Value
+	var v3 types.Value
 	{
-		vp0 := ydb.OptionalValue(ydb.Uint32Value(uint32(u.Magic)))
+		vp0 := types.OptionalValue(types.Uint32Value(uint32(u.Magic)))
 		v3 = vp0
 	}
-	var v4 ydb.Value
+	var v4 types.Value
 	{
-		var v5 ydb.Value
-		v5 = ydb.OptionalValue(ydb.Int64Value(u.Score))
+		var v5 types.Value
+		v5 = types.OptionalValue(types.Int64Value(u.Score))
 		v4 = v5
 	}
-	var v5 ydb.Value
+	var v5 types.Value
 	{
-		var v6 ydb.Value
+		var v6 types.Value
 		ok0 := !u.Updated.IsZero()
 		if ok0 {
-			v6 = ydb.OptionalValue(ydb.TimestampValueFromTime(u.Updated))
+			v6 = types.OptionalValue(types.TimestampValueFromTime(u.Updated))
 		} else {
-			v6 = ydb.NullValue(ydb.TypeTimestamp)
+			v6 = types.NullValue(types.TypeTimestamp)
 		}
 		v5 = v6
 	}
@@ -67,109 +69,109 @@ func (u *User) QueryParameters() *table.QueryParameters {
 	)
 }
 
-func (u *User) StructValue() ydb.Value {
-	var v0 ydb.Value
+func (u *User) StructValue() types.Value {
+	var v0 types.Value
 	{
-		var v1 ydb.Value
+		var v1 types.Value
 		{
-			vp0 := ydb.OptionalValue(ydb.Uint64Value(u.ID))
+			vp0 := types.OptionalValue(types.Uint64Value(u.ID))
 			v1 = vp0
 		}
-		var v2 ydb.Value
+		var v2 types.Value
 		{
-			vp0 := ydb.OptionalValue(ydb.UTF8Value(u.Username))
+			vp0 := types.OptionalValue(types.UTF8Value(u.Username))
 			v2 = vp0
 		}
-		var v3 ydb.Value
+		var v3 types.Value
 		{
-			vp0 := ydb.OptionalValue(ydb.Uint64Value(uint64(u.Mode)))
+			vp0 := types.OptionalValue(types.Uint64Value(uint64(u.Mode)))
 			v3 = vp0
 		}
-		var v4 ydb.Value
+		var v4 types.Value
 		{
-			vp0 := ydb.OptionalValue(ydb.Uint32Value(uint32(u.Magic)))
+			vp0 := types.OptionalValue(types.Uint32Value(uint32(u.Magic)))
 			v4 = vp0
 		}
-		var v5 ydb.Value
+		var v5 types.Value
 		{
-			var v6 ydb.Value
-			v6 = ydb.OptionalValue(ydb.Int64Value(u.Score))
+			var v6 types.Value
+			v6 = types.OptionalValue(types.Int64Value(u.Score))
 			v5 = v6
 		}
-		var v6 ydb.Value
+		var v6 types.Value
 		{
-			var v7 ydb.Value
+			var v7 types.Value
 			ok0 := !u.Updated.IsZero()
 			if ok0 {
-				v7 = ydb.OptionalValue(ydb.TimestampValueFromTime(u.Updated))
+				v7 = types.OptionalValue(types.TimestampValueFromTime(u.Updated))
 			} else {
-				v7 = ydb.NullValue(ydb.TypeTimestamp)
+				v7 = types.NullValue(types.TypeTimestamp)
 			}
 			v6 = v7
 		}
-		v0 = ydb.StructValue(
-			ydb.StructFieldValue("id", v1),
-			ydb.StructFieldValue("username", v2),
-			ydb.StructFieldValue("mode", v3),
-			ydb.StructFieldValue("magic", v4),
-			ydb.StructFieldValue("score", v5),
-			ydb.StructFieldValue("updated", v6),
+		v0 = types.StructValue(
+			types.StructFieldValue("id", v1),
+			types.StructFieldValue("username", v2),
+			types.StructFieldValue("mode", v3),
+			types.StructFieldValue("magic", v4),
+			types.StructFieldValue("score", v5),
+			types.StructFieldValue("updated", v6),
 		)
 	}
 	return v0
 }
 
-func (u *User) StructType() ydb.Type {
-	var t0 ydb.Type
+func (u *User) StructType() types.Type {
+	var t0 types.Type
 	{
-		fs0 := make([]ydb.StructOption, 6)
-		var t1 ydb.Type
+		fs0 := make([]types.StructOption, 6)
+		var t1 types.Type
 		{
-			tp0 := ydb.TypeUint64
-			t1 = ydb.Optional(tp0)
+			tp0 := types.TypeUint64
+			t1 = types.Optional(tp0)
 		}
-		fs0[0] = ydb.StructField("id", t1)
-		var t2 ydb.Type
+		fs0[0] = types.StructField("id", t1)
+		var t2 types.Type
 		{
-			tp0 := ydb.TypeUTF8
-			t2 = ydb.Optional(tp0)
+			tp0 := types.TypeUTF8
+			t2 = types.Optional(tp0)
 		}
-		fs0[1] = ydb.StructField("username", t2)
-		var t3 ydb.Type
+		fs0[1] = types.StructField("username", t2)
+		var t3 types.Type
 		{
-			tp0 := ydb.TypeUint64
-			t3 = ydb.Optional(tp0)
+			tp0 := types.TypeUint64
+			t3 = types.Optional(tp0)
 		}
-		fs0[2] = ydb.StructField("mode", t3)
-		var t4 ydb.Type
+		fs0[2] = types.StructField("mode", t3)
+		var t4 types.Type
 		{
-			tp0 := ydb.TypeUint32
-			t4 = ydb.Optional(tp0)
+			tp0 := types.TypeUint32
+			t4 = types.Optional(tp0)
 		}
-		fs0[3] = ydb.StructField("magic", t4)
-		var t5 ydb.Type
+		fs0[3] = types.StructField("magic", t4)
+		var t5 types.Type
 		{
-			tp0 := ydb.TypeInt64
-			t5 = ydb.Optional(tp0)
+			tp0 := types.TypeInt64
+			t5 = types.Optional(tp0)
 		}
-		fs0[4] = ydb.StructField("score", t5)
-		var t6 ydb.Type
+		fs0[4] = types.StructField("score", t5)
+		var t6 types.Type
 		{
-			tp0 := ydb.TypeTimestamp
-			t6 = ydb.Optional(tp0)
+			tp0 := types.TypeTimestamp
+			t6 = types.Optional(tp0)
 		}
-		fs0[5] = ydb.StructField("updated", t6)
-		t0 = ydb.Struct(fs0...)
+		fs0[5] = types.StructField("updated", t6)
+		t0 = types.Struct(fs0...)
 	}
 	return t0
 }
 
-func (m *MagicUsers) Scan(res *table.Result) (err error) {
+func (m *MagicUsers) Scan(res resultset.Result) (err error) {
 	res.ScanWithDefaults(&m.Magic, newUsers(&m.Users))
 	return res.Err()
 }
 
-func (us *Users) Scan(res *table.Result) (err error) {
+func (us *Users) Scan(res resultset.Result) (err error) {
 	for res.NextRow() {
 		var u User
 		res.ScanWithDefaults(&u.ID, &u.Username, &u.Mode, &u.Magic, &u.Score, &u.Updated)
@@ -181,58 +183,58 @@ func (us *Users) Scan(res *table.Result) (err error) {
 	return res.Err()
 }
 
-func (us Users) ListValue() ydb.Value {
-	var list0 ydb.Value
-	vs0 := make([]ydb.Value, len(us))
+func (us Users) ListValue() types.Value {
+	var list0 types.Value
+	vs0 := make([]types.Value, len(us))
 	for i0, item0 := range us {
-		var v0 ydb.Value
+		var v0 types.Value
 		{
-			var v1 ydb.Value
+			var v1 types.Value
 			{
-				var v2 ydb.Value
+				var v2 types.Value
 				{
-					vp0 := ydb.OptionalValue(ydb.Uint64Value(item0.ID))
+					vp0 := types.OptionalValue(types.Uint64Value(item0.ID))
 					v2 = vp0
 				}
-				var v3 ydb.Value
+				var v3 types.Value
 				{
-					vp0 := ydb.OptionalValue(ydb.UTF8Value(item0.Username))
+					vp0 := types.OptionalValue(types.UTF8Value(item0.Username))
 					v3 = vp0
 				}
-				var v4 ydb.Value
+				var v4 types.Value
 				{
-					vp0 := ydb.OptionalValue(ydb.Uint64Value(uint64(item0.Mode)))
+					vp0 := types.OptionalValue(types.Uint64Value(uint64(item0.Mode)))
 					v4 = vp0
 				}
-				var v5 ydb.Value
+				var v5 types.Value
 				{
-					vp0 := ydb.OptionalValue(ydb.Uint32Value(uint32(item0.Magic)))
+					vp0 := types.OptionalValue(types.Uint32Value(uint32(item0.Magic)))
 					v5 = vp0
 				}
-				var v6 ydb.Value
+				var v6 types.Value
 				{
-					var v7 ydb.Value
-					v7 = ydb.OptionalValue(ydb.Int64Value(item0.Score))
+					var v7 types.Value
+					v7 = types.OptionalValue(types.Int64Value(item0.Score))
 					v6 = v7
 				}
-				var v7 ydb.Value
+				var v7 types.Value
 				{
-					var v8 ydb.Value
+					var v8 types.Value
 					ok0 := !item0.Updated.IsZero()
 					if ok0 {
-						v8 = ydb.OptionalValue(ydb.TimestampValueFromTime(item0.Updated))
+						v8 = types.OptionalValue(types.TimestampValueFromTime(item0.Updated))
 					} else {
-						v8 = ydb.NullValue(ydb.TypeTimestamp)
+						v8 = types.NullValue(types.TypeTimestamp)
 					}
 					v7 = v8
 				}
-				v1 = ydb.StructValue(
-					ydb.StructFieldValue("id", v2),
-					ydb.StructFieldValue("username", v3),
-					ydb.StructFieldValue("mode", v4),
-					ydb.StructFieldValue("magic", v5),
-					ydb.StructFieldValue("score", v6),
-					ydb.StructFieldValue("updated", v7),
+				v1 = types.StructValue(
+					types.StructFieldValue("id", v2),
+					types.StructFieldValue("username", v3),
+					types.StructFieldValue("mode", v4),
+					types.StructFieldValue("magic", v5),
+					types.StructFieldValue("score", v6),
+					types.StructFieldValue("updated", v7),
 				)
 			}
 			v0 = v1
@@ -240,55 +242,55 @@ func (us Users) ListValue() ydb.Value {
 		vs0[i0] = v0
 	}
 	if len(vs0) == 0 {
-		var t1 ydb.Type
+		var t1 types.Type
 		{
-			var t2 ydb.Type
+			var t2 types.Type
 			{
-				fs0 := make([]ydb.StructOption, 6)
-				var t3 ydb.Type
+				fs0 := make([]types.StructOption, 6)
+				var t3 types.Type
 				{
-					tp0 := ydb.TypeUint64
-					t3 = ydb.Optional(tp0)
+					tp0 := types.TypeUint64
+					t3 = types.Optional(tp0)
 				}
-				fs0[0] = ydb.StructField("id", t3)
-				var t4 ydb.Type
+				fs0[0] = types.StructField("id", t3)
+				var t4 types.Type
 				{
-					tp0 := ydb.TypeUTF8
-					t4 = ydb.Optional(tp0)
+					tp0 := types.TypeUTF8
+					t4 = types.Optional(tp0)
 				}
-				fs0[1] = ydb.StructField("username", t4)
-				var t5 ydb.Type
+				fs0[1] = types.StructField("username", t4)
+				var t5 types.Type
 				{
-					tp0 := ydb.TypeUint64
-					t5 = ydb.Optional(tp0)
+					tp0 := types.TypeUint64
+					t5 = types.Optional(tp0)
 				}
-				fs0[2] = ydb.StructField("mode", t5)
-				var t6 ydb.Type
+				fs0[2] = types.StructField("mode", t5)
+				var t6 types.Type
 				{
-					tp0 := ydb.TypeUint32
-					t6 = ydb.Optional(tp0)
+					tp0 := types.TypeUint32
+					t6 = types.Optional(tp0)
 				}
-				fs0[3] = ydb.StructField("magic", t6)
-				var t7 ydb.Type
+				fs0[3] = types.StructField("magic", t6)
+				var t7 types.Type
 				{
-					tp0 := ydb.TypeInt64
-					t7 = ydb.Optional(tp0)
+					tp0 := types.TypeInt64
+					t7 = types.Optional(tp0)
 				}
-				fs0[4] = ydb.StructField("score", t7)
-				var t8 ydb.Type
+				fs0[4] = types.StructField("score", t7)
+				var t8 types.Type
 				{
-					tp0 := ydb.TypeTimestamp
-					t8 = ydb.Optional(tp0)
+					tp0 := types.TypeTimestamp
+					t8 = types.Optional(tp0)
 				}
-				fs0[5] = ydb.StructField("updated", t8)
-				t2 = ydb.Struct(fs0...)
+				fs0[5] = types.StructField("updated", t8)
+				t2 = types.Struct(fs0...)
 			}
 			t1 = t2
 		}
-		t0 := ydb.List(t1)
-		list0 = ydb.ZeroValue(t0)
+		t0 := types.List(t1)
+		list0 = types.ZeroValue(t0)
 	} else {
-		list0 = ydb.ListValue(vs0...)
+		list0 = types.ListValue(vs0...)
 	}
 	return list0
 }
@@ -301,7 +303,7 @@ func newUsers(dst *[]string) *users {
 	return &users{dst}
 }
 
-func (u *users) UnmarshalYDB(res ydb.RawValue) error {
+func (u *users) UnmarshalYDB(res types.RawValue) error {
 	n0 := res.ListIn()
 	xs0 := make([]string, n0)
 	for i0 := 0; i0 < n0; i0++ {
@@ -315,7 +317,7 @@ func (u *users) UnmarshalYDB(res ydb.RawValue) error {
 	return res.Err()
 }
 
-func (ms *MagicUsersList) Scan(res *table.Result) (err error) {
+func (ms *MagicUsersList) Scan(res resultset.Result) (err error) {
 	for res.NextRow() {
 		var x0 MagicUsers
 		res.ScanWithDefaults(&x0.Magic, newUsers(&x0.Users))

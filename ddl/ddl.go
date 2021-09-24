@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
-	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 
 	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
@@ -76,12 +76,12 @@ type Command struct {
 
 func (cmd *Command) ExportFlags(context.Context, *flag.FlagSet) {}
 
-func executeQuery(ctx context.Context, sp *table.SessionPool, prefix string, query string) (err error) {
-	err = table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) error {
+func executeQuery(ctx context.Context, c table.Client, prefix string, query string) (err error) {
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) error {
 			err = s.ExecuteSchemeQuery(ctx, fmt.Sprintf(query, prefix))
 			return err
-		}),
+		},
 	)
 	if err != nil {
 		return err
@@ -92,7 +92,7 @@ func executeQuery(ctx context.Context, sp *table.SessionPool, prefix string, que
 func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	connectCtx, cancel := context.WithTimeout(ctx, params.ConnectTimeout)
 	defer cancel()
-	db, err := connect.New(
+	db, err := ydb.New(
 		connectCtx,
 		params.ConnectParams,
 		environ.WithEnvironCredentials(ctx),
@@ -104,43 +104,43 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	defer func() { _ = db.Close() }()
 
 	//simple creation with composite primary key
-	err = executeQuery(ctx, db.Table().Pool(), params.Prefix(), simpleCreateQuery)
+	err = executeQuery(ctx, db.Table(), params.Prefix(), simpleCreateQuery)
 	if err != nil {
 		return err
 	}
 
 	//creation with column family
-	err = executeQuery(ctx, db.Table().Pool(), params.Prefix(), familyCreateQuery)
+	err = executeQuery(ctx, db.Table(), params.Prefix(), familyCreateQuery)
 	if err != nil {
 		return err
 	}
 
 	//creation with table settings
-	err = executeQuery(ctx, db.Table().Pool(), params.Prefix(), settingsCreateQuery)
+	err = executeQuery(ctx, db.Table(), params.Prefix(), settingsCreateQuery)
 	if err != nil {
 		return err
 	}
 
 	//add column and drop column.
-	err = executeQuery(ctx, db.Table().Pool(), params.Prefix(), alterQuery)
+	err = executeQuery(ctx, db.Table(), params.Prefix(), alterQuery)
 	if err != nil {
 		return err
 	}
 
 	//change AUTO_PARTITIONING_BY_SIZE setting.
-	err = executeQuery(ctx, db.Table().Pool(), params.Prefix(), alterSettingsQuery)
+	err = executeQuery(ctx, db.Table(), params.Prefix(), alterSettingsQuery)
 	if err != nil {
 		return err
 	}
 
 	//add TTL. Clear the old data after the three-hour interval has expired.
-	err = executeQuery(ctx, db.Table().Pool(), params.Prefix(), alterTTLQuery)
+	err = executeQuery(ctx, db.Table(), params.Prefix(), alterTTLQuery)
 	if err != nil {
 		return err
 	}
 
 	//drop tables small_table,small_table2,small_table3.
-	err = executeQuery(ctx, db.Table().Pool(), params.Prefix(), dropQuery)
+	err = executeQuery(ctx, db.Table(), params.Prefix(), dropQuery)
 	if err != nil {
 		return err
 	}

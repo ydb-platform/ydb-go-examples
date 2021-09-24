@@ -14,8 +14,10 @@ import (
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/resultset"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
 const (
@@ -124,13 +126,13 @@ type templateConfig struct {
 
 type service struct {
 	database string
-	db       *connect.Connection
+	db       ydb.Connection
 }
 
-func newService(ctx context.Context, connectParams connect.ConnectParams, connectTimeout time.Duration) (h *service, err error) {
+func newService(ctx context.Context, connectParams ydb.ConnectParams, connectTimeout time.Duration) (h *service, err error) {
 	connectCtx, cancel := context.WithTimeout(ctx, connectTimeout)
 	defer cancel()
-	db, err := connect.New(connectCtx, connectParams, environ.WithEnvironCredentials(ctx))
+	db, err := ydb.New(connectCtx, connectParams, environ.WithEnvironCredentials(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("connect error: %w", err)
 	}
@@ -166,12 +168,13 @@ func (s *service) createTable(ctx context.Context) (err error) {
 			TablePathPrefix: s.database,
 		},
 	)
-	return table.Retry(ctx, s.db.Table().Pool(),
-		table.OperationFunc(func(ctx context.Context, s *table.Session) error {
+	err, _ = s.db.Table().Retry(ctx, false,
+		func(ctx context.Context, s table.Session) error {
 			err := s.ExecuteSchemeQuery(ctx, query)
 			return err
-		}),
+		},
 	)
+	return err
 }
 
 func (s *service) insertShort(ctx context.Context, url string) (hash string, err error) {
@@ -201,18 +204,19 @@ func (s *service) insertShort(ctx context.Context, url string) (hash string, err
 		),
 		table.CommitTx(),
 	)
-	return hash, table.Retry(ctx, s.db.Table().Pool(),
-		table.OperationFunc(func(ctx context.Context, s *table.Session) (err error) {
+	err, _ = s.db.Table().Retry(ctx, false,
+		func(ctx context.Context, s table.Session) (err error) {
 			_, _, err = s.Execute(ctx, writeTx, query,
 				table.NewQueryParameters(
-					table.ValueParam("$hash", ydb.UTF8Value(hash)),
-					table.ValueParam("$src", ydb.UTF8Value(url)),
+					table.ValueParam("$hash", types.UTF8Value(hash)),
+					table.ValueParam("$src", types.UTF8Value(url)),
 				),
-				table.WithCollectStatsModeBasic(),
+				options.WithCollectStatsModeBasic(),
 			)
 			return
-		}),
+		},
 	)
+	return hash, err
 }
 
 func (s *service) selectLong(ctx context.Context, hash string) (url string, err error) {
@@ -239,20 +243,20 @@ func (s *service) selectLong(ctx context.Context, hash string) (url string, err 
 		),
 		table.CommitTx(),
 	)
-	var res *table.Result
-	err = table.Retry(ctx, s.db.Table().Pool(),
-		table.OperationFunc(func(ctx context.Context, s *table.Session) (err error) {
+	var res resultset.Result
+	err, _ = s.db.Table().Retry(ctx, false,
+		func(ctx context.Context, s table.Session) (err error) {
 			_, res, err = s.Execute(ctx, readTx, query,
 				table.NewQueryParameters(
-					table.ValueParam("$hash", ydb.UTF8Value(hash)),
+					table.ValueParam("$hash", types.UTF8Value(hash)),
 				),
-				table.WithQueryCachePolicy(
-					table.WithQueryCachePolicyKeepInCache(),
+				options.WithQueryCachePolicy(
+					options.WithQueryCachePolicyKeepInCache(),
 				),
-				table.WithCollectStatsModeBasic(),
+				options.WithCollectStatsModeBasic(),
 			)
 			return
-		}),
+		},
 	)
 	if err != nil {
 		return "", err

@@ -14,8 +14,8 @@ import (
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
 func render(t *template.Template, data interface{}) string {
@@ -37,15 +37,15 @@ type result struct {
 }
 
 type service struct {
-	db       *connect.Connection
+	db       ydb.Connection
 	database string
 	client   *http.Client
 }
 
-func NewService(ctx context.Context, connectParams connect.ConnectParams, connectTimeout time.Duration) (h *service, err error) {
+func NewService(ctx context.Context, connectParams ydb.ConnectParams, connectTimeout time.Duration) (h *service, err error) {
 	connectCtx, cancel := context.WithTimeout(ctx, connectTimeout)
 	defer cancel()
-	db, err := connect.New(connectCtx, connectParams, environ.WithEnvironCredentials(ctx))
+	db, err := ydb.New(connectCtx, connectParams, environ.WithEnvironCredentials(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("connect error: %w", err)
 	}
@@ -89,12 +89,12 @@ func (s *service) createTable(ctx context.Context) (err error) {
 			TablePathPrefix: s.database,
 		},
 	)
-	return table.Retry(ctx, s.db.Table().Pool(),
-		table.OperationFunc(func(ctx context.Context, s *table.Session) error {
+	err, _ = s.db.Table().Retry(ctx, false,
+		func(ctx context.Context, s table.Session) error {
 			err := s.ExecuteSchemeQuery(ctx, query)
 			return err
-		}),
-	)
+		})
+	return err
 }
 
 func (s *service) ping(path string) result {
@@ -164,25 +164,22 @@ func (s *service) saveCodes(ctx context.Context, codes *sync.Map) (err error) {
 			func(url, code interface{}) bool {
 				res := code.(result)
 				writeTx := table.TxControl(table.BeginTx(table.WithSerializableReadWrite()), table.CommitTx())
-				err = table.Retry(
-					ctx,
-					s.db.Table().Pool(),
-					table.OperationFunc(
-						func(ctx context.Context, s *table.Session) (err error) {
-							_, _, err = s.Execute(
-								ctx,
-								writeTx,
-								query,
-								table.NewQueryParameters(
-									table.ValueParam("$url", ydb.UTF8Value(url.(string))),
-									table.ValueParam("$code", ydb.Int32Value(int32(res.code))),
-									table.ValueParam("$ts", ydb.DatetimeValueFromTime(time.Now())),
-									table.ValueParam("$error", ydb.UTF8Value(res.err)),
-								),
-							)
-							return err
-						},
-					),
+				err, _ = s.db.Table().Retry(
+					ctx, false,
+					func(ctx context.Context, s table.Session) (err error) {
+						_, _, err = s.Execute(
+							ctx,
+							writeTx,
+							query,
+							table.NewQueryParameters(
+								table.ValueParam("$url", types.UTF8Value(url.(string))),
+								table.ValueParam("$code", types.Int32Value(int32(res.code))),
+								table.ValueParam("$ts", types.DatetimeValueFromTime(time.Now())),
+								table.ValueParam("$error", types.UTF8Value(res.err)),
+							),
+						)
+						return err
+					},
 				)
 				if err != nil {
 					fmt.Println("error on save code", url, res, err)
