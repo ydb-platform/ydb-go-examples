@@ -10,8 +10,9 @@ import (
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 
 	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
@@ -35,7 +36,7 @@ func (cmd *Command) ExportFlags(context.Context, *flag.FlagSet) {}
 func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	connectCtx, cancel := context.WithTimeout(ctx, params.ConnectTimeout)
 	defer cancel()
-	db, err := connect.New(
+	db, err := ydb.New(
 		connectCtx,
 		params.ConnectParams,
 		environ.WithEnvironCredentials(ctx),
@@ -54,27 +55,27 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 		_ = session.Close(context.Background())
 	}()
 
-	err = db.CleanupDatabase(ctx, params.Prefix(), "users")
+	err = db.Scheme().CleanupDatabase(ctx, params.Prefix(), "users")
 	if err != nil {
 		return err
 	}
-	err = db.EnsurePathExists(ctx, params.Prefix())
+	err = db.Scheme().EnsurePathExists(ctx, params.Prefix())
 	if err != nil {
 		return err
 	}
 
-	err = table.Retry(ctx, table.SingleSession(session),
-		table.OperationFunc(func(ctx context.Context, s *table.Session) error {
+	err, _ = db.Table().Retry(ctx, false,
+		func(ctx context.Context, s table.Session) error {
 			return s.CreateTable(ctx, path.Join(params.Prefix(), "users"),
-				table.WithColumn("id", ydb.Optional(ydb.TypeUint64)),
-				table.WithColumn("username", ydb.Optional(ydb.TypeUTF8)),
-				table.WithColumn("mode", ydb.Optional(ydb.TypeUint64)),
-				table.WithColumn("magic", ydb.Optional(ydb.TypeUint32)),
-				table.WithColumn("score", ydb.Optional(ydb.TypeInt64)),
-				table.WithColumn("updated", ydb.Optional(ydb.TypeTimestamp)),
-				table.WithPrimaryKeyColumn("id"),
+				options.WithColumn("id", types.Optional(types.TypeUint64)),
+				options.WithColumn("username", types.Optional(types.TypeUTF8)),
+				options.WithColumn("mode", types.Optional(types.TypeUint64)),
+				options.WithColumn("magic", types.Optional(types.TypeUint32)),
+				options.WithColumn("score", types.Optional(types.TypeInt64)),
+				options.WithColumn("updated", types.Optional(types.TypeTimestamp)),
+				options.WithPrimaryKeyColumn("id"),
 			)
-		}),
+		},
 	)
 	if err != nil {
 		return err

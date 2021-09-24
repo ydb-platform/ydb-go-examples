@@ -10,7 +10,7 @@ import (
 
 func doInsert(
 	ctx context.Context,
-	sp *table.SessionPool,
+	c table.Client,
 	prefix string,
 	args ...string,
 ) error {
@@ -57,8 +57,8 @@ func doInsert(
 		)
 		q = fmt.Sprintf(query, prefix)
 	)
-	return table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) error {
+	err, _ := c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) error {
 			_, _, err := s.Execute(ctx, txc, q,
 				table.NewQueryParameters(
 					table.ValueParam("$seriesData", series.ListValue()),
@@ -66,8 +66,8 @@ func doInsert(
 				),
 			)
 			return err
-		}),
-	)
+		})
+	return err
 }
 
 var series = SeriesList{

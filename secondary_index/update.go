@@ -3,15 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
+
 	"strconv"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/resultset"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
 func doUpdate(
 	ctx context.Context,
-	sp *table.SessionPool,
+	c table.Client,
 	prefix string,
 	args ...string,
 ) error {
@@ -27,16 +29,16 @@ func doUpdate(
 		return err
 	}
 
-	c, err := updateTransaction(ctx, sp, prefix, s, v)
+	count, err := updateTransaction(ctx, c, prefix, s, v)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("Updated %v rows", c)
+	fmt.Printf("Updated %v rows", count)
 	return nil
 }
 
-func updateTransaction(ctx context.Context, sp *table.SessionPool, prefix string, seriesID,
+func updateTransaction(ctx context.Context, c table.Client, prefix string, seriesID,
 	newViews uint64) (count uint64, err error) {
 	query := fmt.Sprintf(`
         PRAGMA TablePathPrefix("%v");
@@ -67,20 +69,20 @@ func updateTransaction(ctx context.Context, sp *table.SessionPool, prefix string
 
 	writeTx := table.TxControl(table.BeginTx(table.WithSerializableReadWrite()), table.CommitTx())
 
-	var res *table.Result
-	err = table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) (err error) {
+	var res resultset.Result
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) (err error) {
 			stmt, err := s.Prepare(ctx, query)
 			if err != nil {
 				return err
 			}
 			_, res, err = stmt.Execute(ctx, writeTx,
 				table.NewQueryParameters(
-					table.ValueParam("$seriesId", ydb.Uint64Value(seriesID)),
-					table.ValueParam("$newViews", ydb.Uint64Value(newViews)),
+					table.ValueParam("$seriesId", types.Uint64Value(seriesID)),
+					table.ValueParam("$newViews", types.Uint64Value(newViews)),
 				))
 			return err
-		}))
+		})
 	if err != nil {
 		return
 	}

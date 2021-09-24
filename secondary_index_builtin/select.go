@@ -7,13 +7,14 @@ import (
 	"strconv"
 	"text/tabwriter"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/resultset"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
 func doSelect(
 	ctx context.Context,
-	sp *table.SessionPool,
+	c table.Client,
 	prefix string,
 	args ...string,
 ) error {
@@ -42,8 +43,8 @@ func doSelect(
 		return err
 	}
 
-	res, err := execSelect(ctx, sp, fmt.Sprintf(query, prefix),
-		table.ValueParam("$minViews", ydb.Uint64Value(minViews)),
+	res, err := execSelect(ctx, c, fmt.Sprintf(query, prefix),
+		table.ValueParam("$minViews", types.Uint64Value(minViews)),
 	)
 	if err != nil {
 		return err
@@ -64,7 +65,7 @@ func doSelect(
 
 func doSelectJoin(
 	ctx context.Context,
-	sp *table.SessionPool,
+	c table.Client,
 	prefix string,
 	args ...string,
 ) error {
@@ -93,8 +94,8 @@ func doSelectJoin(
 	}
 	userName := args[0]
 
-	res, err := execSelect(ctx, sp, fmt.Sprintf(query, prefix),
-		table.ValueParam("$userName", ydb.UTF8Value(userName)),
+	res, err := execSelect(ctx, c, fmt.Sprintf(query, prefix),
+		table.ValueParam("$userName", types.UTF8Value(userName)),
 	)
 	if err != nil {
 		return err
@@ -116,13 +117,13 @@ func doSelectJoin(
 }
 
 func execSelect(
-	ctx context.Context, sp *table.SessionPool,
+	ctx context.Context, c table.Client,
 	query string, params ...table.ParameterOption,
 ) (
-	res *table.Result, err error,
+	res resultset.Result, err error,
 ) {
-	err = table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) (err error) {
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) (err error) {
 			stmt, err := s.Prepare(ctx, query)
 			if err != nil {
 				return err
@@ -137,7 +138,7 @@ func execSelect(
 				table.NewQueryParameters(params...),
 			)
 			return err
-		}),
+		},
 	)
 	return
 }

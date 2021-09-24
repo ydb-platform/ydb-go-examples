@@ -13,16 +13,14 @@ import (
 	"time"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table"
-	"github.com/ydb-platform/ydb-go-sdk/v3/traceutil"
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
 var ErrPrintUsage = fmt.Errorf("")
 
 type Parameters struct {
 	Args           []string
-	ConnectParams  connect.ConnectParams
+	ConnectParams  ydb.ConnectParams
 	ConnectTimeout time.Duration
 
 	link                  string
@@ -98,39 +96,39 @@ func Run(cmd Command) {
 
 	params.Args = flagSet.Args()
 
-	params.ConnectParams = connect.MustConnectionString(params.link)
+	params.ConnectParams = ydb.MustConnectionString(params.link)
 
 	if params.driverTrace {
-		var trace ydb.DriverTrace
-		traceutil.Stub(&trace, func(name string, args ...interface{}) {
+		var t trace.Driver
+		trace.Stub(&t, func(name string, args ...interface{}) {
 			log.Printf(
 				"[driver] %s: %+v",
-				name, traceutil.ClearContext(args),
+				name, trace.ClearContext(args),
 			)
 		})
-		ctx = ydb.WithDriverTrace(ctx, trace)
+		ctx = trace.WithDriver(ctx, t)
 	}
 
 	if params.tableClientTrace {
-		var trace table.ClientTrace
-		traceutil.Stub(&trace, func(name string, args ...interface{}) {
+		var t trace.Retry
+		trace.Stub(&t, func(name string, args ...interface{}) {
 			log.Printf(
-				"[table client] %s: %+v",
-				name, traceutil.ClearContext(args),
+				"[retry] %s: %+v",
+				name, trace.ClearContext(args),
 			)
 		})
-		ctx = table.WithClientTrace(ctx, trace)
+		ctx = trace.WithRetry(ctx, t)
 	}
 
 	if params.tableSessionPoolTrace {
-		var trace table.SessionPoolTrace
-		traceutil.Stub(&trace, func(name string, args ...interface{}) {
+		var t trace.Table
+		trace.Stub(&t, func(name string, args ...interface{}) {
 			log.Printf(
-				"[table session pool] %s: %+v",
-				name, traceutil.ClearContext(args),
+				"[client trace] %s: %+v",
+				name, trace.ClearContext(args),
 			)
 		})
-		ctx = table.WithSessionPoolTrace(ctx, trace)
+		ctx = trace.WithTable(ctx, t)
 	}
 
 	quit := make(chan error)

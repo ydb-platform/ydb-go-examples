@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -13,8 +12,10 @@ import (
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/resultset"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 
 	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
@@ -83,7 +84,7 @@ func (cmd *Command) ExportFlags(context.Context, *flag.FlagSet) {}
 func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	connectCtx, cancel := context.WithTimeout(ctx, params.ConnectTimeout)
 	defer cancel()
-	db, err := connect.New(
+	db, err := ydb.New(
 		connectCtx,
 		params.ConnectParams,
 		environ.WithEnvironCredentials(ctx),
@@ -93,52 +94,49 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	}
 	defer func() { _ = db.Close() }()
 
-	err = db.CleanupDatabase(ctx, params.Prefix(), "series", "episodes", "seasons")
+	err = db.Scheme().CleanupDatabase(ctx, params.Prefix(), "series", "episodes", "seasons")
 	if err != nil {
 		return err
 	}
 
-	err = db.EnsurePathExists(ctx, params.Prefix())
+	err = db.Scheme().EnsurePathExists(ctx, params.Prefix())
 	if err != nil {
 		return err
 	}
 
-	err = describeTableOptions(ctx, db.Table().Pool())
+	err = describeTableOptions(ctx, db.Table())
 	if err != nil {
 		return fmt.Errorf("describe table options error: %w", err)
 	}
 
-	err = createTables(ctx, db.Table().Pool(), params.Prefix())
+	err = createTables(ctx, db.Table(), params.Prefix())
 	if err != nil {
 		return fmt.Errorf("create tables error: %w", err)
 	}
 
-	err = describeTable(ctx, db.Table().Pool(), path.Join(
+	err = describeTable(ctx, db.Table(), path.Join(
 		params.Prefix(), "series",
 	))
 	if err != nil {
 		return fmt.Errorf("describe table error: %w", err)
 	}
 
-	err = fillTablesWithData(ctx, db.Table().Pool(), params.Prefix())
+	err = fillTablesWithData(ctx, db.Table(), params.Prefix())
 	if err != nil {
 		return fmt.Errorf("fill tables with data error: %w", err)
 	}
 
-	err = selectSimple(ctx, db.Table().Pool(), params.Prefix())
+	err = selectSimple(ctx, db.Table(), params.Prefix())
 	if err != nil {
 		return fmt.Errorf("select simple error: %w", err)
 	}
 
-	err = scanQuerySelect(ctx, db.Table().Pool(), params.Prefix())
+	err = scanQuerySelect(ctx, db.Table(), params.Prefix())
 	if err != nil {
-		var te *ydb.TransportError
-		if !errors.As(err, &te) || te.Reason != ydb.TransportErrorUnimplemented {
-			return fmt.Errorf("scan query select error: %w", err)
-		}
+		return fmt.Errorf("scan query select error: %w", err)
 	}
 
-	err = readTable(ctx, db.Table().Pool(), path.Join(
+	err = readTable(ctx, db.Table(), path.Join(
 		params.Prefix(), "episodes",
 	))
 	if err != nil {
@@ -148,16 +146,16 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	return nil
 }
 
-func readTable(ctx context.Context, sp *table.SessionPool, path string) (err error) {
-	var res *table.Result
-	err = table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) (err error) {
+func readTable(ctx context.Context, c table.Client, path string) (err error) {
+	var res resultset.Result
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) (err error) {
 			res, err = s.StreamReadTable(ctx, path,
-				table.ReadColumn("title"),
-				table.ReadColumn("air_date"),
+				options.ReadColumn("title"),
+				options.ReadColumn("air_date"),
 			)
 			return
-		}),
+		},
 	)
 	if err != nil {
 		return err
@@ -184,13 +182,13 @@ func readTable(ctx context.Context, sp *table.SessionPool, path string) (err err
 	return nil
 }
 
-func describeTableOptions(ctx context.Context, sp *table.SessionPool) (err error) {
-	var desc table.TableOptionsDescription
-	err = table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) (err error) {
+func describeTableOptions(ctx context.Context, c table.Client) (err error) {
+	var desc options.TableOptionsDescription
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) (err error) {
 			desc, err = s.DescribeTableOptions(ctx)
 			return
-		}),
+		},
 	)
 	if err != nil {
 		return err
@@ -222,7 +220,7 @@ func describeTableOptions(ctx context.Context, sp *table.SessionPool) (err error
 	return nil
 }
 
-func selectSimple(ctx context.Context, sp *table.SessionPool, prefix string) (err error) {
+func selectSimple(ctx context.Context, c table.Client, prefix string) (err error) {
 	query := render(
 		template.Must(template.New("").Parse(`
 			PRAGMA TablePathPrefix("{{ .TablePathPrefix }}");
@@ -247,20 +245,20 @@ func selectSimple(ctx context.Context, sp *table.SessionPool, prefix string) (er
 		),
 		table.CommitTx(),
 	)
-	var res *table.Result
-	err = table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) (err error) {
+	var res resultset.Result
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) (err error) {
 			_, res, err = s.Execute(ctx, readTx, query,
 				table.NewQueryParameters(
-					table.ValueParam("$seriesID", ydb.Uint64Value(1)),
+					table.ValueParam("$seriesID", types.Uint64Value(1)),
 				),
-				table.WithQueryCachePolicy(
-					table.WithQueryCachePolicyKeepInCache(),
+				options.WithQueryCachePolicy(
+					options.WithQueryCachePolicyKeepInCache(),
 				),
-				table.WithCollectStatsModeBasic(),
+				options.WithCollectStatsModeBasic(),
 			)
 			return
-		}),
+		},
 	)
 	if err != nil {
 		return err
@@ -310,7 +308,7 @@ func selectSimple(ctx context.Context, sp *table.SessionPool, prefix string) (er
 	return nil
 }
 
-func scanQuerySelect(ctx context.Context, sp *table.SessionPool, prefix string) (err error) {
+func scanQuerySelect(ctx context.Context, c table.Client, prefix string) (err error) {
 	query := render(
 		template.Must(template.New("").Parse(`
 			PRAGMA TablePathPrefix("{{ .TablePathPrefix }}");
@@ -326,21 +324,21 @@ func scanQuerySelect(ctx context.Context, sp *table.SessionPool, prefix string) 
 		},
 	)
 
-	var res *table.Result
-	err = table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) (err error) {
+	var res resultset.Result
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) (err error) {
 			res, err = s.StreamExecuteScanQuery(ctx, query,
 				table.NewQueryParameters(
 					table.ValueParam("$series",
-						ydb.ListValue(
-							ydb.Uint64Value(1),
-							ydb.Uint64Value(10),
+						types.ListValue(
+							types.Uint64Value(1),
+							types.Uint64Value(10),
 						),
 					),
 				),
 			)
 			return
-		}),
+		},
 	)
 	if err != nil {
 		return err
@@ -371,7 +369,7 @@ func scanQuerySelect(ctx context.Context, sp *table.SessionPool, prefix string) 
 	return nil
 }
 
-func fillTablesWithData(ctx context.Context, sp *table.SessionPool, prefix string) (err error) {
+func fillTablesWithData(ctx context.Context, c table.Client, prefix string) (err error) {
 	// Prepare write transaction.
 	writeTx := table.TxControl(
 		table.BeginTx(
@@ -379,8 +377,8 @@ func fillTablesWithData(ctx context.Context, sp *table.SessionPool, prefix strin
 		),
 		table.CommitTx(),
 	)
-	return table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) (err error) {
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) (err error) {
 			stmt, err := s.Prepare(ctx, render(fill, templateConfig{
 				TablePathPrefix: prefix,
 			}))
@@ -393,54 +391,54 @@ func fillTablesWithData(ctx context.Context, sp *table.SessionPool, prefix strin
 				table.ValueParam("$episodesData", getEpisodesData()),
 			))
 			return err
-		}),
-	)
+		})
+	return err
 }
 
-func createTables(ctx context.Context, sp *table.SessionPool, prefix string) (err error) {
-	err = table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) error {
+func createTables(ctx context.Context, c table.Client, prefix string) (err error) {
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) error {
 			return s.CreateTable(ctx, path.Join(prefix, "series"),
-				table.WithColumn("series_id", ydb.Optional(ydb.TypeUint64)),
-				table.WithColumn("title", ydb.Optional(ydb.TypeUTF8)),
-				table.WithColumn("series_info", ydb.Optional(ydb.TypeUTF8)),
-				table.WithColumn("release_date", ydb.Optional(ydb.TypeDate)),
-				table.WithColumn("comment", ydb.Optional(ydb.TypeUTF8)),
-				table.WithPrimaryKeyColumn("series_id"),
+				options.WithColumn("series_id", types.Optional(types.TypeUint64)),
+				options.WithColumn("title", types.Optional(types.TypeUTF8)),
+				options.WithColumn("series_info", types.Optional(types.TypeUTF8)),
+				options.WithColumn("release_date", types.Optional(types.TypeDate)),
+				options.WithColumn("comment", types.Optional(types.TypeUTF8)),
+				options.WithPrimaryKeyColumn("series_id"),
 			)
-		}),
+		},
 	)
 	if err != nil {
 		return err
 	}
 
-	err = table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) error {
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) error {
 			return s.CreateTable(ctx, path.Join(prefix, "seasons"),
-				table.WithColumn("series_id", ydb.Optional(ydb.TypeUint64)),
-				table.WithColumn("season_id", ydb.Optional(ydb.TypeUint64)),
-				table.WithColumn("title", ydb.Optional(ydb.TypeUTF8)),
-				table.WithColumn("first_aired", ydb.Optional(ydb.TypeDate)),
-				table.WithColumn("last_aired", ydb.Optional(ydb.TypeDate)),
-				table.WithPrimaryKeyColumn("series_id", "season_id"),
+				options.WithColumn("series_id", types.Optional(types.TypeUint64)),
+				options.WithColumn("season_id", types.Optional(types.TypeUint64)),
+				options.WithColumn("title", types.Optional(types.TypeUTF8)),
+				options.WithColumn("first_aired", types.Optional(types.TypeDate)),
+				options.WithColumn("last_aired", types.Optional(types.TypeDate)),
+				options.WithPrimaryKeyColumn("series_id", "season_id"),
 			)
-		}),
+		},
 	)
 	if err != nil {
 		return err
 	}
 
-	err = table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) error {
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) error {
 			return s.CreateTable(ctx, path.Join(prefix, "episodes"),
-				table.WithColumn("series_id", ydb.Optional(ydb.TypeUint64)),
-				table.WithColumn("season_id", ydb.Optional(ydb.TypeUint64)),
-				table.WithColumn("episode_id", ydb.Optional(ydb.TypeUint64)),
-				table.WithColumn("title", ydb.Optional(ydb.TypeUTF8)),
-				table.WithColumn("air_date", ydb.Optional(ydb.TypeDate)),
-				table.WithPrimaryKeyColumn("series_id", "season_id", "episode_id"),
+				options.WithColumn("series_id", types.Optional(types.TypeUint64)),
+				options.WithColumn("season_id", types.Optional(types.TypeUint64)),
+				options.WithColumn("episode_id", types.Optional(types.TypeUint64)),
+				options.WithColumn("title", types.Optional(types.TypeUTF8)),
+				options.WithColumn("air_date", types.Optional(types.TypeDate)),
+				options.WithPrimaryKeyColumn("series_id", "season_id", "episode_id"),
 			)
-		}),
+		},
 	)
 	if err != nil {
 		return err
@@ -449,9 +447,9 @@ func createTables(ctx context.Context, sp *table.SessionPool, prefix string) (er
 	return nil
 }
 
-func describeTable(ctx context.Context, sp *table.SessionPool, path string) (err error) {
-	err = table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) error {
+func describeTable(ctx context.Context, c table.Client, path string) (err error) {
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) error {
 			desc, err := s.DescribeTable(ctx, path)
 			if err != nil {
 				return err
@@ -461,7 +459,7 @@ func describeTable(ctx context.Context, sp *table.SessionPool, path string) (err
 				log.Printf("column, name: %s, %s", c.Type, c.Name)
 			}
 			return nil
-		}),
+		},
 	)
 	return
 }

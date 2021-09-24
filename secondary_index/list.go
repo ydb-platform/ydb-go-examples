@@ -8,13 +8,14 @@ import (
 	"strconv"
 	"text/tabwriter"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/resultset"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
 func doList(
 	ctx context.Context,
-	sp *table.SessionPool,
+	c table.Client,
 	prefix string,
 	args ...string,
 ) error {
@@ -26,11 +27,11 @@ func doList(
 			Error: %v`, err)
 	}
 
-	var res *table.Result
+	var res resultset.Result
 	if lastID, id := arg["last-id"]; id {
-		res, err = listByIDSeries(ctx, sp, prefix, arg["limit"], lastID)
+		res, err = listByIDSeries(ctx, c, prefix, arg["limit"], lastID)
 	} else {
-		res, err = listByID(ctx, sp, prefix, arg["limit"])
+		res, err = listByID(ctx, c, prefix, arg["limit"])
 	}
 	if err != nil {
 		return err
@@ -48,7 +49,7 @@ func doList(
 
 func doListViews(
 	ctx context.Context,
-	sp *table.SessionPool,
+	c table.Client,
 	prefix string,
 	args ...string,
 ) error {
@@ -61,16 +62,16 @@ func doListViews(
 			Error: %v`, err)
 	}
 
-	var res *table.Result
+	var res resultset.Result
 	lastID, id := arg["last-id"]
 	lastView, view := arg["last-views"]
 	if id && view {
-		res, err = listByViewsSeries(ctx, sp, prefix, arg["limit"], lastID, lastView)
+		res, err = listByViewsSeries(ctx, c, prefix, arg["limit"], lastID, lastView)
 		if err != nil {
 			return err
 		}
 	} else {
-		res, err = listByViews(ctx, sp, prefix, arg["limit"])
+		res, err = listByViews(ctx, c, prefix, arg["limit"])
 		if err != nil {
 			return err
 		}
@@ -89,7 +90,7 @@ func doListViews(
 	return nil
 }
 
-func listByID(ctx context.Context, sp *table.SessionPool, prefix string, limit uint64) (res *table.Result, err error) {
+func listByID(ctx context.Context, c table.Client, prefix string, limit uint64) (res resultset.Result, err error) {
 	query := fmt.Sprintf(`
         PRAGMA TablePathPrefix("%v");
 
@@ -102,23 +103,23 @@ func listByID(ctx context.Context, sp *table.SessionPool, prefix string, limit u
 
 	writeTx := table.TxControl(table.BeginTx(table.WithSerializableReadWrite()), table.CommitTx())
 
-	err = table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) (err error) {
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) (err error) {
 			stmt, err := s.Prepare(ctx, query)
 			if err != nil {
 				return err
 			}
 			_, res, err = stmt.Execute(ctx, writeTx,
 				table.NewQueryParameters(
-					table.ValueParam("$limit", ydb.Uint64Value(limit)),
+					table.ValueParam("$limit", types.Uint64Value(limit)),
 				))
 			return err
-		}))
+		})
 	return
 }
 
-func listByIDSeries(ctx context.Context, sp *table.SessionPool, prefix string, limit, lastSeries uint64,
-) (res *table.Result, err error) {
+func listByIDSeries(ctx context.Context, c table.Client, prefix string, limit, lastSeries uint64,
+) (res resultset.Result, err error) {
 	query := fmt.Sprintf(`
         PRAGMA TablePathPrefix("%v");
 
@@ -133,24 +134,24 @@ func listByIDSeries(ctx context.Context, sp *table.SessionPool, prefix string, l
 
 	writeTx := table.TxControl(table.BeginTx(table.WithSerializableReadWrite()), table.CommitTx())
 
-	err = table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) (err error) {
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) (err error) {
 			stmt, err := s.Prepare(ctx, query)
 			if err != nil {
 				return err
 			}
 			_, res, err = stmt.Execute(ctx, writeTx,
 				table.NewQueryParameters(
-					table.ValueParam("$limit", ydb.Uint64Value(limit)),
-					table.ValueParam("$lastSeriesId", ydb.Uint64Value(lastSeries)),
+					table.ValueParam("$limit", types.Uint64Value(limit)),
+					table.ValueParam("$lastSeriesId", types.Uint64Value(lastSeries)),
 				))
 			return err
-		}))
+		})
 	return
 }
 
-func listByViews(ctx context.Context, sp *table.SessionPool, prefix string, limit uint64,
-) (res *table.Result, err error) {
+func listByViews(ctx context.Context, c table.Client, prefix string, limit uint64,
+) (res resultset.Result, err error) {
 	query := fmt.Sprintf(`
 		PRAGMA TablePathPrefix("%v");
 
@@ -170,23 +171,23 @@ func listByViews(ctx context.Context, sp *table.SessionPool, prefix string, limi
 
 	writeTx := table.TxControl(table.BeginTx(table.WithSerializableReadWrite()), table.CommitTx())
 
-	err = table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) (err error) {
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) (err error) {
 			stmt, err := s.Prepare(ctx, query)
 			if err != nil {
 				return err
 			}
 			_, res, err = stmt.Execute(ctx, writeTx,
 				table.NewQueryParameters(
-					table.ValueParam("$limit", ydb.Uint64Value(limit)),
+					table.ValueParam("$limit", types.Uint64Value(limit)),
 				))
 			return err
-		}))
+		})
 	return
 }
 
-func listByViewsSeries(ctx context.Context, sp *table.SessionPool, prefix string, limit, lastSeries, lastViews uint64,
-) (res *table.Result, err error) {
+func listByViewsSeries(ctx context.Context, c table.Client, prefix string, limit, lastSeries, lastViews uint64,
+) (res resultset.Result, err error) {
 	query := fmt.Sprintf(`
         PRAGMA TablePathPrefix("%v");
 
@@ -227,20 +228,20 @@ func listByViewsSeries(ctx context.Context, sp *table.SessionPool, prefix string
 
 	writeTx := table.TxControl(table.BeginTx(table.WithSerializableReadWrite()), table.CommitTx())
 
-	err = table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) (err error) {
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) (err error) {
 			stmt, err := s.Prepare(ctx, query)
 			if err != nil {
 				return err
 			}
 			_, res, err = stmt.Execute(ctx, writeTx,
 				table.NewQueryParameters(
-					table.ValueParam("$limit", ydb.Uint64Value(limit)),
-					table.ValueParam("$lastSeriesId", ydb.Uint64Value(lastSeries)),
-					table.ValueParam("$lastViews", ydb.Uint64Value(lastViews)),
+					table.ValueParam("$limit", types.Uint64Value(limit)),
+					table.ValueParam("$lastSeriesId", types.Uint64Value(lastSeries)),
+					table.ValueParam("$lastViews", types.Uint64Value(lastViews)),
 				))
 			return err
-		}))
+		})
 	return
 }
 

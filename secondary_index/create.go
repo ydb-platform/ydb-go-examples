@@ -2,50 +2,58 @@ package main
 
 import (
 	"context"
+	"log"
+	"os"
 	"path"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
 func doCreate(
 	ctx context.Context,
-	sp *table.SessionPool,
+	c table.Client,
 	prefix string,
 	args ...string,
 ) error {
 	for _, desc := range []struct {
 		name string
-		opts []table.CreateTableOption
+		opts []options.CreateTableOption
 	}{
 		{
 			name: TableSeries,
-			opts: []table.CreateTableOption{
-				table.WithColumn("series_id", ydb.Optional(ydb.TypeUint64)),
-				table.WithColumn("title", ydb.Optional(ydb.TypeUTF8)),
-				table.WithColumn("series_info", ydb.Optional(ydb.TypeUTF8)),
-				table.WithColumn("release_date", ydb.Optional(ydb.TypeDatetime)),
-				table.WithColumn("views", ydb.Optional(ydb.TypeUint64)),
+			opts: []options.CreateTableOption{
+				options.WithColumn("series_id", types.Optional(types.TypeUint64)),
+				options.WithColumn("title", types.Optional(types.TypeUTF8)),
+				options.WithColumn("series_info", types.Optional(types.TypeUTF8)),
+				options.WithColumn("release_date", types.Optional(types.TypeDatetime)),
+				options.WithColumn("views", types.Optional(types.TypeUint64)),
 
-				table.WithPrimaryKeyColumn("series_id"),
+				options.WithPrimaryKeyColumn("series_id"),
 			},
 		},
 		{
 			name: TableSeriesRevViews,
-			opts: []table.CreateTableOption{
-				table.WithColumn("rev_views", ydb.Optional(ydb.TypeUint64)),
-				table.WithColumn("series_id", ydb.Optional(ydb.TypeUint64)),
+			opts: []options.CreateTableOption{
+				options.WithColumn("rev_views", types.Optional(types.TypeUint64)),
+				options.WithColumn("series_id", types.Optional(types.TypeUint64)),
 
-				table.WithPrimaryKeyColumn("rev_views", "series_id"),
+				options.WithPrimaryKeyColumn("rev_views", "series_id"),
 			},
 		},
 	} {
-		err := table.Retry(ctx, sp,
-			table.OperationFunc(func(ctx context.Context, s *table.Session) error {
+		err, issues := c.Retry(ctx, false,
+			func(ctx context.Context, s table.Session) error {
 				return s.CreateTable(ctx, path.Join(prefix, desc.name), desc.opts...)
-			}),
+			},
 		)
 		if err != nil {
+			log.SetOutput(os.Stderr)
+			log.Printf("\n> doCreate issues:\n")
+			for _, e := range issues {
+				log.Printf("\t> %v\n", e)
+			}
 			return err
 		}
 	}

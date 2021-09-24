@@ -13,8 +13,9 @@ import (
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 
 	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
@@ -34,7 +35,7 @@ func (cmd *Command) ExportFlags(_ context.Context, flagSet *flag.FlagSet) {
 func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	connectCtx, cancel := context.WithTimeout(ctx, params.ConnectTimeout)
 	defer cancel()
-	db, err := connect.New(
+	db, err := ydb.New(
 		connectCtx,
 		params.ConnectParams,
 		environ.WithEnvironCredentials(ctx),
@@ -46,16 +47,16 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	tableName := "upload_example"
 	name := path.Join(params.Prefix(), tableName)
 
-	err = db.CleanupDatabase(ctx, params.Prefix(), tableName)
+	err = db.Scheme().CleanupDatabase(ctx, params.Prefix(), tableName)
 	if err != nil {
 		return err
 	}
-	err = db.EnsurePathExists(ctx, params.Prefix())
+	err = db.Scheme().EnsurePathExists(ctx, params.Prefix())
 	if err != nil {
 		return err
 	}
 
-	err = createTable(ctx, db.Table().Pool(), name)
+	err = createTable(ctx, db.Table(), name)
 	if err != nil {
 		return fmt.Errorf("create tables error: %w", err)
 	}
@@ -75,7 +76,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	t := initTracker(cmd.count, cmd.infly)
 	jobs := make(chan ItemList)
 	for i := 0; i < cmd.infly; i++ {
-		go uploadWorker(ctx, db.Table().Pool(), cmd.rps, query, jobs, t.track)
+		go uploadWorker(ctx, db.Table(), cmd.rps, query, jobs, t.track)
 	}
 
 	fmt.Printf(`Uploading...
@@ -118,7 +119,7 @@ loop:
 	return err
 }
 
-func uploadWorker(ctx context.Context, sp *table.SessionPool, rps int, query string, jobs <-chan ItemList,
+func uploadWorker(ctx context.Context, c table.Client, rps int, query string, jobs <-chan ItemList,
 	res chan<- result) {
 
 	throttle := time.Tick(time.Second / time.Duration(rps))
@@ -127,8 +128,8 @@ func uploadWorker(ctx context.Context, sp *table.SessionPool, rps int, query str
 		<-throttle
 
 		writeTx := table.TxControl(table.BeginTx(table.WithSerializableReadWrite()), table.CommitTx())
-		err := table.Retry(ctx, sp,
-			table.OperationFunc(func(ctx context.Context, s *table.Session) (err error) {
+		err, _ := c.Retry(ctx, false,
+			func(ctx context.Context, s table.Session) (err error) {
 				stmt, err := s.Prepare(ctx, query)
 				if err != nil {
 					return err
@@ -138,7 +139,7 @@ func uploadWorker(ctx context.Context, sp *table.SessionPool, rps int, query str
 						table.ValueParam("$items", j.ListValue()),
 					))
 				return err
-			}))
+			})
 		if err != nil {
 			res <- result{err, 0, len(j)}
 		} else {
@@ -147,18 +148,18 @@ func uploadWorker(ctx context.Context, sp *table.SessionPool, rps int, query str
 	}
 }
 
-func createTable(ctx context.Context, sp *table.SessionPool, path string) (err error) {
+func createTable(ctx context.Context, c table.Client, path string) (err error) {
 	fmt.Printf(" create table %v\n", path)
 
-	err = table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) error {
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) error {
 			return s.CreateTable(ctx, path,
-				table.WithColumn("host_uid", ydb.Optional(ydb.TypeUint64)),
-				table.WithColumn("url_uid", ydb.Optional(ydb.TypeUint64)),
-				table.WithColumn("url", ydb.Optional(ydb.TypeUTF8)),
-				table.WithColumn("page", ydb.Optional(ydb.TypeUTF8)),
-				table.WithPrimaryKeyColumn("host_uid", "url_uid"))
-		}))
+				options.WithColumn("host_uid", types.Optional(types.TypeUint64)),
+				options.WithColumn("url_uid", types.Optional(types.TypeUint64)),
+				options.WithColumn("url", types.Optional(types.TypeUTF8)),
+				options.WithColumn("page", types.Optional(types.TypeUTF8)),
+				options.WithPrimaryKeyColumn("host_uid", "url_uid"))
+		})
 	if err != nil {
 		return err
 	}

@@ -5,14 +5,15 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"path"
 	"time"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
-	"github.com/ydb-platform/ydb-go-sdk/v3/ydbsql"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 
 	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
@@ -32,9 +33,14 @@ type logMessage struct {
 	Message   string
 }
 
-func wrap(err error, explanation string) error {
+func wrap(err error, explanation string, issues ...error) error {
 	if err != nil {
-		return fmt.Errorf("%s: %w", explanation, err)
+		log.SetOutput(os.Stderr)
+		log.Printf("\n>" + explanation + ":\n")
+		for _, e := range issues {
+			log.Printf("\t> %v\n", e)
+		}
+		return err
 	}
 	return err
 }
@@ -59,43 +65,45 @@ func getLogBatch(logs []logMessage, offset int) []logMessage {
 	return logs
 }
 
-func (cmd *Command) createLogTable(ctx context.Context, sp table.SessionProvider) error {
+func (cmd *Command) createLogTable(ctx context.Context, c table.Client) error {
 	log.Printf("Create table: %v\n", cmd.table)
-	return wrap(table.Retry(ctx, sp, table.OperationFunc(func(ctx context.Context, session *table.Session) error {
+	err, issues := c.Retry(ctx, false, func(ctx context.Context, session table.Session) error {
 		return session.CreateTable(ctx, cmd.table,
-			table.WithColumn("App", ydb.Optional(ydb.TypeUTF8)),
-			table.WithColumn("Timestamp", ydb.Optional(ydb.TypeTimestamp)),
-			table.WithColumn("Host", ydb.Optional(ydb.TypeUTF8)),
-			table.WithColumn("HTTPCode", ydb.Optional(ydb.TypeUint32)),
-			table.WithColumn("Message", ydb.Optional(ydb.TypeUTF8)),
-			table.WithPrimaryKeyColumn("App", "Timestamp", "Host"),
+			options.WithColumn("App", types.Optional(types.TypeUTF8)),
+			options.WithColumn("Timestamp", types.Optional(types.TypeTimestamp)),
+			options.WithColumn("Host", types.Optional(types.TypeUTF8)),
+			options.WithColumn("HTTPCode", types.Optional(types.TypeUint32)),
+			options.WithColumn("Message", types.Optional(types.TypeUTF8)),
+			options.WithPrimaryKeyColumn("App", "Timestamp", "Host"),
 		)
-	})), "failed to create table")
+	})
+	return wrap(err, "failed to create table", issues...)
 }
 
-func (cmd *Command) writeLogBatch(ctx context.Context, sp table.SessionProvider, logs []logMessage) error {
-	return wrap(table.Retry(ctx, sp, table.OperationFunc(func(ctx context.Context, session *table.Session) error {
-		rows := make([]ydb.Value, 0, len(logs))
+func (cmd *Command) writeLogBatch(ctx context.Context, c table.Client, logs []logMessage) error {
+	err, issues := c.Retry(ctx, false, func(ctx context.Context, session table.Session) error {
+		rows := make([]types.Value, 0, len(logs))
 
 		for _, msg := range logs {
-			rows = append(rows, ydb.StructValue(
-				ydb.StructFieldValue("App", ydb.UTF8Value(msg.App)),
-				ydb.StructFieldValue("Host", ydb.UTF8Value(msg.Host)),
-				ydb.StructFieldValue("Timestamp", ydbsql.Timestamp(msg.Timestamp).Value()),
-				ydb.StructFieldValue("HTTPCode", ydb.Uint32Value(msg.HTTPCode)),
-				ydb.StructFieldValue("Message", ydb.UTF8Value(msg.Message)),
+			rows = append(rows, types.StructValue(
+				types.StructFieldValue("App", types.UTF8Value(msg.App)),
+				types.StructFieldValue("Host", types.UTF8Value(msg.Host)),
+				types.StructFieldValue("Timestamp", types.TimestampValueFromTime(msg.Timestamp)),
+				types.StructFieldValue("HTTPCode", types.Uint32Value(msg.HTTPCode)),
+				types.StructFieldValue("Message", types.UTF8Value(msg.Message)),
 			))
 		}
 
-		return wrap(session.BulkUpsert(ctx, cmd.table, ydb.ListValue(rows...)),
+		return wrap(session.BulkUpsert(ctx, cmd.table, types.ListValue(rows...)),
 			"failed to perform bulk upsert")
-	})), "failed to write log batch")
+	})
+	return wrap(err, "failed to write log batch", issues...)
 }
 
 func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	connectCtx, cancel := context.WithTimeout(ctx, params.ConnectTimeout)
 	defer cancel()
-	db, err := connect.New(
+	db, err := ydb.New(
 		connectCtx,
 		params.ConnectParams,
 		environ.WithEnvironCredentials(ctx),
@@ -109,22 +117,22 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	tableName := cmd.table
 	cmd.table = path.Join(params.Prefix(), cmd.table)
 
-	err = db.CleanupDatabase(ctx, params.Prefix(), tableName)
+	err = db.Scheme().CleanupDatabase(ctx, params.Prefix(), tableName)
 	if err != nil {
 		return err
 	}
-	err = db.EnsurePathExists(ctx, params.Prefix())
+	err = db.Scheme().EnsurePathExists(ctx, params.Prefix())
 	if err != nil {
 		return err
 	}
 
-	if err := cmd.createLogTable(ctx, db.Table().Pool()); err != nil {
+	if err := cmd.createLogTable(ctx, db.Table()); err != nil {
 		return wrap(err, "failed to create table")
 	}
 	var logs []logMessage
 	for offset := 0; offset < cmd.count; offset++ {
 		logs = getLogBatch(logs, offset)
-		if err := cmd.writeLogBatch(ctx, db.Table().Pool(), logs); err != nil {
+		if err := cmd.writeLogBatch(ctx, db.Table(), logs); err != nil {
 			return wrap(err, fmt.Sprintf("failed to write batch offset %d", offset))
 		}
 		fmt.Print(".")

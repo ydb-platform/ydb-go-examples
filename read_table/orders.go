@@ -10,8 +10,10 @@ import (
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/resultset"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 
 	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
@@ -24,7 +26,7 @@ func (cmd *Command) ExportFlags(context.Context, *flag.FlagSet) {}
 func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	connectCtx, cancel := context.WithTimeout(ctx, params.ConnectTimeout)
 	defer cancel()
-	db, err := connect.New(
+	db, err := ydb.New(
 		connectCtx,
 		params.ConnectParams,
 		environ.WithEnvironCredentials(ctx),
@@ -37,53 +39,53 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 
 	tableName := "orders"
 	fmt.Println("Read whole table, unsorted:")
-	err = readTable(ctx, db.Table().Pool(), path.Join(params.Prefix(), tableName))
+	err = readTable(ctx, db.Table(), path.Join(params.Prefix(), tableName))
 	if err != nil {
 		return fmt.Errorf("read table error: %w", err)
 	}
 
 	fmt.Println("Sorted by composite primary key:")
-	err = readTable(ctx, db.Table().Pool(), path.Join(params.Prefix(), tableName), table.ReadOrdered())
+	err = readTable(ctx, db.Table(), path.Join(params.Prefix(), tableName), options.ReadOrdered())
 	if err != nil {
 		return fmt.Errorf("read table error: %w", err)
 	}
 
 	fmt.Println("Any five rows:")
-	err = readTable(ctx, db.Table().Pool(), path.Join(params.Prefix(), tableName), table.ReadRowLimit(5))
+	err = readTable(ctx, db.Table(), path.Join(params.Prefix(), tableName), options.ReadRowLimit(5))
 	if err != nil {
 		return fmt.Errorf("read table error: %w", err)
 	}
 
 	fmt.Println("First five rows by PK (ascending) with subset of columns:")
-	err = readTable(ctx, db.Table().Pool(), path.Join(params.Prefix(), tableName), table.ReadRowLimit(5), table.ReadColumn("customer_id"),
-		table.ReadColumn("order_id"),
-		table.ReadColumn("order_date"), table.ReadOrdered())
+	err = readTable(ctx, db.Table(), path.Join(params.Prefix(), tableName), options.ReadRowLimit(5), options.ReadColumn("customer_id"),
+		options.ReadColumn("order_id"),
+		options.ReadColumn("order_date"), options.ReadOrdered())
 	if err != nil {
 		return fmt.Errorf("read table error: %w", err)
 	}
 
 	fmt.Println("Read all rows with first PK component (customer_id,) greater or equal than 2 and less then 3:")
-	keyRange := table.KeyRange{
-		From: ydb.TupleValue(ydb.OptionalValue(ydb.Uint64Value(2))),
-		To:   ydb.TupleValue(ydb.OptionalValue(ydb.Uint64Value(3))),
+	keyRange := options.KeyRange{
+		From: types.TupleValue(types.OptionalValue(types.Uint64Value(2))),
+		To:   types.TupleValue(types.OptionalValue(types.Uint64Value(3))),
 	}
-	err = readTable(ctx, db.Table().Pool(), path.Join(params.Prefix(), tableName), table.ReadKeyRange(keyRange))
+	err = readTable(ctx, db.Table(), path.Join(params.Prefix(), tableName), options.ReadKeyRange(keyRange))
 	if err != nil {
 		return fmt.Errorf("read table error: %w", err)
 	}
 
 	fmt.Println("Read all rows with composite PK lexicographically less or equal than (1,4):")
-	err = readTable(ctx, db.Table().Pool(), path.Join(params.Prefix(), tableName), table.ReadLessOrEqual(ydb.TupleValue(ydb.OptionalValue(ydb.Uint64Value(1)), ydb.OptionalValue(ydb.Uint64Value(4)))))
+	err = readTable(ctx, db.Table(), path.Join(params.Prefix(), tableName), options.ReadLessOrEqual(types.TupleValue(types.OptionalValue(types.Uint64Value(1)), types.OptionalValue(types.Uint64Value(4)))))
 	if err != nil {
 		return fmt.Errorf("read table error: %w", err)
 	}
 
 	fmt.Println("Read all rows with composite PK lexicographically greater or equal than (1,2) and less than (3,4):")
-	keyRange = table.KeyRange{
-		From: ydb.TupleValue(ydb.OptionalValue(ydb.Uint64Value(1)), ydb.OptionalValue(ydb.Uint64Value(2))),
-		To:   ydb.TupleValue(ydb.OptionalValue(ydb.Uint64Value(3)), ydb.OptionalValue(ydb.Uint64Value(1))),
+	keyRange = options.KeyRange{
+		From: types.TupleValue(types.OptionalValue(types.Uint64Value(1)), types.OptionalValue(types.Uint64Value(2))),
+		To:   types.TupleValue(types.OptionalValue(types.Uint64Value(3)), types.OptionalValue(types.Uint64Value(1))),
 	}
-	err = readTable(ctx, db.Table().Pool(), path.Join(params.Prefix(), tableName), table.ReadKeyRange(keyRange))
+	err = readTable(ctx, db.Table(), path.Join(params.Prefix(), tableName), options.ReadKeyRange(keyRange))
 	if err != nil {
 		return fmt.Errorf("read table error: %w", err)
 	}
@@ -98,14 +100,14 @@ type row struct {
 	description string
 }
 
-func readTable(ctx context.Context, sp *table.SessionPool, path string, opts ...table.ReadTableOption) (err error) {
-	var res *table.Result
+func readTable(ctx context.Context, c table.Client, path string, opts ...options.ReadTableOption) (err error) {
+	var res resultset.Result
 
-	err = table.Retry(ctx, sp,
-		table.OperationFunc(func(ctx context.Context, s *table.Session) (err error) {
+	err, _ = c.Retry(ctx, false,
+		func(ctx context.Context, s table.Session) (err error) {
 			res, err = s.StreamReadTable(ctx, path, opts...)
 			return err
-		}),
+		},
 	)
 	if err != nil {
 		return err
@@ -114,7 +116,7 @@ func readTable(ctx context.Context, sp *table.SessionPool, path string, opts ...
 	r := row{}
 	for res.NextResultSet(ctx) {
 		for res.NextRow() {
-			if res.ColumnCount() == 4 {
+			if res.CurrentResultSet().ColumnCount() == 4 {
 				err = res.ScanWithDefaults(&r.id, &r.orderID, &r.description, &r.date)
 				if err != nil {
 					return err

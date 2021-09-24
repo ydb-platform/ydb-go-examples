@@ -8,13 +8,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
 func doGenerate(
 	ctx context.Context,
-	sp *table.SessionPool,
+	c table.Client,
 	prefix string,
 	args ...string,
 ) error {
@@ -30,7 +30,7 @@ func doGenerate(
 	jobs := make(chan Series, arg.count)
 	result := make(chan error, arg.count)
 	for i := 0; i < arg.threads; i++ {
-		go insertSeriesWorker(ctx, sp, prefix, jobs, result)
+		go insertSeriesWorker(ctx, c, prefix, jobs, result)
 	}
 
 	for i, id := 0, arg.seriesID; i < arg.count; i, id = i+1, id+1 {
@@ -55,7 +55,7 @@ func doGenerate(
 	return err
 }
 
-func insertSeriesWorker(ctx context.Context, sp *table.SessionPool, prefix string, jobs <-chan Series,
+func insertSeriesWorker(ctx context.Context, c table.Client, prefix string, jobs <-chan Series,
 	err chan<- error) {
 	query := fmt.Sprintf(`
         PRAGMA TablePathPrefix("%v");
@@ -79,8 +79,8 @@ func insertSeriesWorker(ctx context.Context, sp *table.SessionPool, prefix strin
 
 	for j := range jobs {
 		writeTx := table.TxControl(table.BeginTx(table.WithSerializableReadWrite()), table.CommitTx())
-		err <- table.Retry(ctx, sp,
-			table.OperationFunc(func(ctx context.Context, s *table.Session) (err error) {
+		e, _ := c.Retry(ctx, false,
+			func(ctx context.Context, s table.Session) (err error) {
 				stmt, err := s.Prepare(ctx, query)
 				if err != nil {
 					return err
@@ -88,14 +88,15 @@ func insertSeriesWorker(ctx context.Context, sp *table.SessionPool, prefix strin
 
 				_, _, err = stmt.Execute(ctx, writeTx,
 					table.NewQueryParameters(
-						table.ValueParam("$seriesId", ydb.Uint64Value(j.ID)),
-						table.ValueParam("$title", ydb.UTF8Value(j.Title)),
-						table.ValueParam("$seriesInfo", ydb.UTF8Value(j.Info)),
-						table.ValueParam("$releaseDate", ydb.DatetimeValueFromTime(j.ReleaseDate)),
-						table.ValueParam("$views", ydb.Uint64Value(j.Views)),
+						table.ValueParam("$seriesId", types.Uint64Value(j.ID)),
+						table.ValueParam("$title", types.UTF8Value(j.Title)),
+						table.ValueParam("$seriesInfo", types.UTF8Value(j.Info)),
+						table.ValueParam("$releaseDate", types.DatetimeValueFromTime(j.ReleaseDate)),
+						table.ValueParam("$views", types.Uint64Value(j.Views)),
 					))
 				return err
-			}))
+			})
+		err <- e
 	}
 }
 

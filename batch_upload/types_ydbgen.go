@@ -5,55 +5,56 @@ package main
 import (
 	"strconv"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/resultset"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
 var (
 	_ = strconv.Itoa
-	_ = ydb.StringValue
+	_ = types.StringValue
 	_ = table.NewQueryParameters
 )
 
-func (i *Item) Scan(res *table.Result) (err error) {
+func (i *Item) Scan(res resultset.Result) (err error) {
 	res.ScanWithDefaults(&i.HostUID, &i.URLUID, &i.URL, &i.Page)
 	return res.Err()
 }
 
-func (i *Item) StructValue() ydb.Value {
-	var v0 ydb.Value
+func (i *Item) StructValue() types.Value {
+	var v0 types.Value
 	{
-		var v1 ydb.Value
+		var v1 types.Value
 		{
-			vp0 := ydb.OptionalValue(ydb.Uint64Value(i.HostUID))
+			vp0 := types.OptionalValue(types.Uint64Value(i.HostUID))
 			v1 = vp0
 		}
-		var v2 ydb.Value
+		var v2 types.Value
 		{
-			vp0 := ydb.OptionalValue(ydb.Uint64Value(i.URLUID))
+			vp0 := types.OptionalValue(types.Uint64Value(i.URLUID))
 			v2 = vp0
 		}
-		var v3 ydb.Value
+		var v3 types.Value
 		{
-			vp0 := ydb.OptionalValue(ydb.UTF8Value(i.URL))
+			vp0 := types.OptionalValue(types.UTF8Value(i.URL))
 			v3 = vp0
 		}
-		var v4 ydb.Value
+		var v4 types.Value
 		{
-			vp0 := ydb.OptionalValue(ydb.UTF8Value(i.Page))
+			vp0 := types.OptionalValue(types.UTF8Value(i.Page))
 			v4 = vp0
 		}
-		v0 = ydb.StructValue(
-			ydb.StructFieldValue("host_uid", v1),
-			ydb.StructFieldValue("url_uid", v2),
-			ydb.StructFieldValue("url", v3),
-			ydb.StructFieldValue("page", v4),
+		v0 = types.StructValue(
+			types.StructFieldValue("host_uid", v1),
+			types.StructFieldValue("url_uid", v2),
+			types.StructFieldValue("url", v3),
+			types.StructFieldValue("page", v4),
 		)
 	}
 	return v0
 }
 
-func (is *ItemList) Scan(res *table.Result) (err error) {
+func (is *ItemList) Scan(res resultset.Result) (err error) {
 	for res.NextRow() {
 		var x0 Item
 		res.ScanWithDefaults(&x0.HostUID, &x0.URLUID, &x0.URL, &x0.Page)
@@ -65,39 +66,39 @@ func (is *ItemList) Scan(res *table.Result) (err error) {
 	return res.Err()
 }
 
-func (is ItemList) ListValue() ydb.Value {
-	var list0 ydb.Value
-	vs0 := make([]ydb.Value, len(is))
+func (is ItemList) ListValue() types.Value {
+	var list0 types.Value
+	vs0 := make([]types.Value, len(is))
 	for i0, item0 := range is {
-		var v0 ydb.Value
+		var v0 types.Value
 		{
-			var v1 ydb.Value
+			var v1 types.Value
 			{
-				var v2 ydb.Value
+				var v2 types.Value
 				{
-					vp0 := ydb.OptionalValue(ydb.Uint64Value(item0.HostUID))
+					vp0 := types.OptionalValue(types.Uint64Value(item0.HostUID))
 					v2 = vp0
 				}
-				var v3 ydb.Value
+				var v3 types.Value
 				{
-					vp0 := ydb.OptionalValue(ydb.Uint64Value(item0.URLUID))
+					vp0 := types.OptionalValue(types.Uint64Value(item0.URLUID))
 					v3 = vp0
 				}
-				var v4 ydb.Value
+				var v4 types.Value
 				{
-					vp0 := ydb.OptionalValue(ydb.UTF8Value(item0.URL))
+					vp0 := types.OptionalValue(types.UTF8Value(item0.URL))
 					v4 = vp0
 				}
-				var v5 ydb.Value
+				var v5 types.Value
 				{
-					vp0 := ydb.OptionalValue(ydb.UTF8Value(item0.Page))
+					vp0 := types.OptionalValue(types.UTF8Value(item0.Page))
 					v5 = vp0
 				}
-				v1 = ydb.StructValue(
-					ydb.StructFieldValue("host_uid", v2),
-					ydb.StructFieldValue("url_uid", v3),
-					ydb.StructFieldValue("url", v4),
-					ydb.StructFieldValue("page", v5),
+				v1 = types.StructValue(
+					types.StructFieldValue("host_uid", v2),
+					types.StructFieldValue("url_uid", v3),
+					types.StructFieldValue("url", v4),
+					types.StructFieldValue("page", v5),
 				)
 			}
 			v0 = v1
@@ -105,43 +106,43 @@ func (is ItemList) ListValue() ydb.Value {
 		vs0[i0] = v0
 	}
 	if len(vs0) == 0 {
-		var t1 ydb.Type
+		var t1 types.Type
 		{
-			var t2 ydb.Type
+			var t2 types.Type
 			{
-				fs0 := make([]ydb.StructOption, 4)
-				var t3 ydb.Type
+				fs0 := make([]types.StructOption, 4)
+				var t3 types.Type
 				{
-					tp0 := ydb.TypeUint64
-					t3 = ydb.Optional(tp0)
+					tp0 := types.TypeUint64
+					t3 = types.Optional(tp0)
 				}
-				fs0[0] = ydb.StructField("host_uid", t3)
-				var t4 ydb.Type
+				fs0[0] = types.StructField("host_uid", t3)
+				var t4 types.Type
 				{
-					tp0 := ydb.TypeUint64
-					t4 = ydb.Optional(tp0)
+					tp0 := types.TypeUint64
+					t4 = types.Optional(tp0)
 				}
-				fs0[1] = ydb.StructField("url_uid", t4)
-				var t5 ydb.Type
+				fs0[1] = types.StructField("url_uid", t4)
+				var t5 types.Type
 				{
-					tp0 := ydb.TypeUTF8
-					t5 = ydb.Optional(tp0)
+					tp0 := types.TypeUTF8
+					t5 = types.Optional(tp0)
 				}
-				fs0[2] = ydb.StructField("url", t5)
-				var t6 ydb.Type
+				fs0[2] = types.StructField("url", t5)
+				var t6 types.Type
 				{
-					tp0 := ydb.TypeUTF8
-					t6 = ydb.Optional(tp0)
+					tp0 := types.TypeUTF8
+					t6 = types.Optional(tp0)
 				}
-				fs0[3] = ydb.StructField("page", t6)
-				t2 = ydb.Struct(fs0...)
+				fs0[3] = types.StructField("page", t6)
+				t2 = types.Struct(fs0...)
 			}
 			t1 = t2
 		}
-		t0 := ydb.List(t1)
-		list0 = ydb.ZeroValue(t0)
+		t0 := types.List(t1)
+		list0 = types.ZeroValue(t0)
 	} else {
-		list0 = ydb.ListValue(vs0...)
+		list0 = types.ListValue(vs0...)
 	}
 	return list0
 }

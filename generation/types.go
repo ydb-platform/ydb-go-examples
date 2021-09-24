@@ -5,10 +5,6 @@ import (
 	"time"
 )
 
-//go:generate ydbgen
-
-// User represents a user of application.
-//ydb:gen
 type User struct {
 	ID       uint64
 	Username string
@@ -19,15 +15,11 @@ type User struct {
 	Data     []byte    `ydb:"-"`
 }
 
-//ydb:gen scan,value
 type Users []User
 
-//ydb:gen scan
-//ydb:set seek:position
 type MagicUsers struct {
 	Magic uint     `ydb:"type:uint32?,conv:unsafe"`
 	Users []string `ydb:"type:list<utf8>"`
 }
 
-//ydb:gen scan
 type MagicUsersList []MagicUsers

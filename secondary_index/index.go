@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
-	"github.com/ydb-platform/ydb-go-sdk/v3/connect"
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 
 	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
@@ -19,7 +19,7 @@ const (
 	TableSeriesRevViews = "series_rev_views"
 )
 
-var actions = map[string]func(context.Context, *table.SessionPool, string, ...string) error{
+var actions = map[string]func(context.Context, table.Client, string, ...string) error{
 	"create":    doCreate,
 	"generate":  doGenerate,
 	"update":    doUpdate,
@@ -61,7 +61,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 
 	connectCtx, cancel := context.WithTimeout(ctx, params.ConnectTimeout)
 	defer cancel()
-	db, err := connect.New(
+	db, err := ydb.New(
 		connectCtx,
 		params.ConnectParams,
 		environ.WithEnvironCredentials(ctx),
@@ -72,5 +72,5 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	}
 	defer func() { _ = db.Close() }()
 
-	return action(ctx, db.Table().Pool(), params.Prefix(), params.Args[1:]...)
+	return action(ctx, db.Table(), params.Prefix(), params.Args[1:]...)
 }
