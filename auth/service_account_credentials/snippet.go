@@ -5,8 +5,8 @@ import (
 	"flag"
 	"fmt"
 
-	iam "github.com/ydb-platform/ydb-go-sdk-auth-iam"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-yc"
 
 	"github.com/ydb-platform/ydb-go-examples/pkg/cli"
 )
@@ -20,13 +20,13 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	defer cancel()
 	db, err := ydb.New(
 		connectCtx,
-		params.ConnectParams,
-		iam.WithServiceAccountKeyFileCredentials(cmd.serviceAccountKeyFile),
+		ydb.WithConnectParams(params.ConnectParams),
+		yc.WithServiceAccountKeyFileCredentials(cmd.serviceAccountKeyFile),
 	)
 	if err != nil {
 		return fmt.Errorf("connect error: %w", err)
 	}
-	defer func() { _ = db.Close() }()
+	defer func() { _ = db.Close(ctx) }()
 
 	// work with db instance
 
