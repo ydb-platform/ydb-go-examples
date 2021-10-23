@@ -26,7 +26,12 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	}
 	defer func() { _ = db.Close(ctx) }()
 
-	// work with db instance
+	whoAmI, err := db.Discovery().WhoAmI(ctx)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(whoAmI.String())
 
 	return nil
 }
