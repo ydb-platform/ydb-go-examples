@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"log"
 	"path"
 
@@ -29,7 +30,7 @@ func wrap(err error, explanation string) error {
 }
 
 func (cmd *Command) testUniformPartitions(ctx context.Context, c table.Client) error {
-	log.Printf("Create table: %v\n", cmd.table)
+	log.Printf("Create uniform partitions table: %v\n", cmd.table)
 
 	err := c.Do(
 		ctx,
@@ -65,7 +66,7 @@ func (cmd *Command) testUniformPartitions(ctx context.Context, c table.Client) e
 }
 
 func (cmd *Command) testExplicitPartitions(ctx context.Context, c table.Client) error {
-	log.Printf("Create table: %v\n", cmd.table)
+	log.Printf("Create explicit partitions table: %v\n", cmd.table)
 
 	err := c.Do(
 		ctx,
@@ -118,11 +119,11 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	tableName := cmd.table
 	cmd.table = path.Join(params.Prefix(), cmd.table)
 
-	err = db.Scheme().CleanupDatabase(ctx, params.Prefix(), tableName)
+	err = sugar.RmPath(ctx, db, params.Prefix(), tableName)
 	if err != nil {
 		return err
 	}
-	err = db.Scheme().EnsurePathExists(ctx, params.Prefix())
+	err = sugar.MakePath(ctx, db, params.Prefix())
 	if err != nil {
 		return err
 	}
@@ -131,7 +132,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 		return wrap(err, "failed to test uniform partitions")
 	}
 
-	err = db.Scheme().CleanupDatabase(ctx, params.Prefix(), tableName)
+	err = sugar.RmPath(ctx, db, params.Prefix(), tableName)
 	if err != nil {
 		return err
 	}

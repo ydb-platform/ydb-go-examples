@@ -59,8 +59,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	defer func() { _ = db.Close(ctx) }()
 
 	var (
-		tablePathPrefix = path.Join(params.Database(), params.Prefix())
-		tablePath       = path.Join(tablePathPrefix, "decimals")
+		tablePath = path.Join(params.Prefix(), "decimals")
 	)
 	err = db.Table().Do(
 		ctx,
@@ -80,14 +79,14 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 		ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			write, err := s.Prepare(ctx, render(writeQuery, templateConfig{
-				TablePathPrefix: tablePathPrefix,
+				TablePathPrefix: params.Prefix(),
 			}))
 			if err != nil {
 				return err
 			}
 
 			read, err := s.Prepare(ctx, render(readQuery, templateConfig{
-				TablePathPrefix: tablePathPrefix,
+				TablePathPrefix: params.Prefix(),
 			}))
 			if err != nil {
 				return err

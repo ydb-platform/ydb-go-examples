@@ -12,7 +12,7 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table/resultset"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/result"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 
 	"github.com/ydb-platform/ydb-go-examples/internal/cli"
@@ -99,7 +99,7 @@ type row struct {
 }
 
 func readTable(ctx context.Context, c table.Client, path string, opts ...options.ReadTableOption) (err error) {
-	var res resultset.Result
+	var res result.StreamResult
 
 	err = c.Do(
 		ctx,

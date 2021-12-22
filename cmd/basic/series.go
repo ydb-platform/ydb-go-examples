@@ -5,6 +5,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"log"
 	"path"
 	"text/template"
@@ -14,7 +15,7 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table/resultset"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/result"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 
 	"github.com/ydb-platform/ydb-go-examples/internal/cli"
@@ -95,12 +96,12 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	}
 	defer func() { _ = db.Close(ctx) }()
 
-	err = db.Scheme().CleanupDatabase(ctx, params.Prefix(), "series", "episodes", "seasons")
+	err = sugar.RmPath(ctx, db, params.Prefix(), "series", "episodes", "seasons")
 	if err != nil {
 		return err
 	}
 
-	err = db.Scheme().EnsurePathExists(ctx, params.Prefix())
+	err = sugar.MakePath(ctx, db, params.Prefix())
 	if err != nil {
 		return err
 	}
@@ -148,7 +149,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 }
 
 func readTable(ctx context.Context, c table.Client, path string) (err error) {
-	var res resultset.Result
+	var res result.StreamResult
 	err = c.Do(
 		ctx,
 		func(ctx context.Context, s table.Session) (err error) {
@@ -268,7 +269,7 @@ func selectSimple(ctx context.Context, c table.Client, prefix string) (err error
 		),
 		table.CommitTx(),
 	)
-	var res resultset.Result
+	var res result.Result
 	err = c.Do(
 		ctx,
 		func(ctx context.Context, s table.Session) (err error) {
@@ -324,11 +325,10 @@ func scanQuerySelect(ctx context.Context, c table.Client, prefix string) (err er
 		},
 	)
 
-	var res resultset.Result
-	err = c.Do(
+	return c.Do(
 		ctx,
-		func(ctx context.Context, s table.Session) (err error) {
-			res, err = s.StreamExecuteScanQuery(ctx, query,
+		func(ctx context.Context, s table.Session) error {
+			res, err := s.StreamExecuteScanQuery(ctx, query,
 				table.NewQueryParameters(
 					table.ValueParam("$series",
 						types.ListValue(
@@ -338,33 +338,35 @@ func scanQuerySelect(ctx context.Context, c table.Client, prefix string) (err er
 					),
 				),
 			)
-			return
-		},
-	)
-	if err != nil {
-		return err
-	}
-	var (
-		seriesID uint64
-		seasonID uint64
-		title    string
-		date     string
-	)
-	log.Print("\n> scan_query_select:")
-	for res.NextResultSet(ctx, "series_id", "season_id", "title", "first_aired") {
-		if err = res.Err(); err != nil {
-			return err
-		}
-
-		for res.NextRow() {
-			err = res.ScanWithDefaults(&seriesID, &seasonID, &title, &date)
 			if err != nil {
 				return err
 			}
-			log.Printf("#  Season, SeriesId: %d, SeasonId: %d, Title: %s, Air date: %s", seriesID, seasonID, title, date)
-		}
-	}
-	return res.Err()
+			defer func() {
+				_ = res.Close()
+			}()
+			var (
+				seriesID uint64
+				seasonID uint64
+				title    string
+				date     string
+			)
+			log.Print("\n> scan_query_select:")
+			for res.NextResultSet(ctx, "series_id", "season_id", "title", "first_aired") {
+				if err = res.Err(); err != nil {
+					return err
+				}
+
+				for res.NextRow() {
+					err = res.ScanWithDefaults(&seriesID, &seasonID, &title, &date)
+					if err != nil {
+						return err
+					}
+					log.Printf("#  Season, SeriesId: %d, SeasonId: %d, Title: %s, Air date: %s", seriesID, seasonID, title, date)
+				}
+			}
+			return res.Err()
+		},
+	)
 }
 
 func fillTablesWithData(ctx context.Context, c table.Client, prefix string) (err error) {

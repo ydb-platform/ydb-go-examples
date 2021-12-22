@@ -4,13 +4,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"path"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table/resultset"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/result"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 
 	"github.com/ydb-platform/ydb-go-examples/internal/cli"
@@ -38,11 +39,11 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	}
 	defer func() { _ = db.Close(ctx) }()
 
-	err = db.Scheme().CleanupDatabase(ctx, params.Prefix(), "documents")
+	err = sugar.RmPath(ctx, db, params.Prefix(), "documents")
 	if err != nil {
 		return err
 	}
-	err = db.Scheme().EnsurePathExists(ctx, params.Prefix())
+	err = sugar.MakePath(ctx, db, params.Prefix())
 	if err != nil {
 		return err
 	}
@@ -227,7 +228,7 @@ func deleteExpiredRange(ctx context.Context, c table.Client, prefix string, time
 	keyRange options.KeyRange) error {
 	fmt.Printf("> DeleteExpiredRange: %+v\n", keyRange)
 
-	var res resultset.Result
+	var res result.StreamResult
 	err := c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			res, err = s.StreamReadTable(ctx, path.Join(prefix, "documents"),
@@ -326,7 +327,7 @@ func readDocument(ctx context.Context, c table.Client, prefix, url string) error
 
 	readTx := table.TxControl(table.BeginTx(table.WithOnlineReadOnly()), table.CommitTx())
 
-	var res resultset.Result
+	var res result.Result
 	err := c.Do(
 		ctx,
 		func(ctx context.Context, s table.Session) (err error) {

@@ -3,7 +3,7 @@ module github.com/ydb-platform/ydb-go-examples
 go 1.16
 
 require (
-	github.com/ydb-platform/ydb-go-sdk-auth-environ v0.0.2
-	github.com/ydb-platform/ydb-go-sdk/v3 v3.2.6
-	github.com/ydb-platform/ydb-go-yc v0.0.1-alpha
+	github.com/ydb-platform/ydb-go-sdk-auth-environ v0.0.10
+	github.com/ydb-platform/ydb-go-sdk/v3 v3.5.1
+	github.com/ydb-platform/ydb-go-yc v0.4.2
 )

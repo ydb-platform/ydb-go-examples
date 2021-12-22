@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"math/rand"
 	"path"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table/resultset"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/result"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 
 	"github.com/ydb-platform/ydb-go-examples/internal/cli"
@@ -44,11 +45,11 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 		cleanupDBs = append(cleanupDBs, fmt.Sprintf("expiration_queue_%v", i))
 	}
 
-	err = db.Scheme().CleanupDatabase(ctx, params.Prefix(), cleanupDBs...)
+	err = sugar.RmPath(ctx, db, params.Prefix(), cleanupDBs...)
 	if err != nil {
 		return err
 	}
-	err = db.Scheme().EnsurePathExists(ctx, params.Prefix())
+	err = sugar.MakePath(ctx, db, params.Prefix())
 	if err != nil {
 		return err
 	}
@@ -129,7 +130,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 }
 
 func readExpiredBatchTransaction(ctx context.Context, c table.Client, prefix string, queue,
-	timestamp, prevTimestamp, prevDocID uint64) (resultset.Result,
+	timestamp, prevTimestamp, prevDocID uint64) (result.Result,
 	error) {
 
 	query := fmt.Sprintf(`
@@ -164,7 +165,7 @@ func readExpiredBatchTransaction(ctx context.Context, c table.Client, prefix str
 
 	readTx := table.TxControl(table.BeginTx(table.WithOnlineReadOnly()), table.CommitTx())
 
-	var res resultset.Result
+	var res result.Result
 	err := c.Do(
 		ctx,
 		func(ctx context.Context, s table.Session) (err error) {
@@ -268,7 +269,7 @@ func readDocument(ctx context.Context, c table.Client, prefix, url string) error
 
 	readTx := table.TxControl(table.BeginTx(table.WithOnlineReadOnly()), table.CommitTx())
 
-	var res resultset.Result
+	var res result.Result
 	err := c.Do(
 		ctx,
 		func(ctx context.Context, s table.Session) (err error) {

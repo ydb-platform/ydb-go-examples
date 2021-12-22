@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"log"
 	"path"
 	"time"
@@ -114,11 +115,11 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	tableName := cmd.table
 	cmd.table = path.Join(params.Prefix(), cmd.table)
 
-	err = db.Scheme().CleanupDatabase(ctx, params.Prefix(), tableName)
+	err = sugar.RmPath(ctx, db, params.Prefix(), tableName)
 	if err != nil {
 		return err
 	}
-	err = db.Scheme().EnsurePathExists(ctx, params.Prefix())
+	err = sugar.MakePath(ctx, db, params.Prefix())
 	if err != nil {
 		return err
 	}

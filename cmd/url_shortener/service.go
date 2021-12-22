@@ -15,7 +15,7 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table/resultset"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/result"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
@@ -241,7 +241,7 @@ func (s *service) selectLong(ctx context.Context, hash string) (url string, err 
 		),
 		table.CommitTx(),
 	)
-	var res resultset.Result
+	var res result.Result
 	err = s.db.Table().Do(
 		ctx,
 		func(ctx context.Context, s table.Session) (err error) {

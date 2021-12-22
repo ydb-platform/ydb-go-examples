@@ -12,7 +12,6 @@ import (
 	"syscall"
 
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
 var ErrPrintUsage = fmt.Errorf("")
@@ -21,10 +20,8 @@ type Parameters struct {
 	Args          []string
 	ConnectParams ydb.ConnectParams
 
-	link             string
-	prefix           string
-	driverTrace      bool
-	tableClientTrace bool
+	link   string
+	prefix string
 }
 
 func (p *Parameters) Database() string {
@@ -67,14 +64,6 @@ func Run(cmd Command) {
 		"prefix", "",
 		"tables prefix",
 	)
-	flagSet.BoolVar(&params.driverTrace,
-		"driver-trace", false,
-		"trace all driver events",
-	)
-	flagSet.BoolVar(&params.tableClientTrace,
-		"table-client-trace", false,
-		"trace all table client events",
-	)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -86,28 +75,6 @@ func Run(cmd Command) {
 	params.Args = flagSet.Args()
 
 	params.ConnectParams = ydb.MustConnectionString(params.link)
-
-	if params.driverTrace {
-		var t trace.Driver
-		trace.Stub(&t, func(name string, args ...interface{}) {
-			log.Printf(
-				"[driver] %s: %+v",
-				name, trace.ClearContext(args),
-			)
-		})
-		ctx = trace.WithDriver(ctx, t)
-	}
-
-	if params.tableClientTrace {
-		var t trace.Table
-		trace.Stub(&t, func(name string, args ...interface{}) {
-			log.Printf(
-				"[table] %s: %+v",
-				name, trace.ClearContext(args),
-			)
-		})
-		ctx = trace.WithTable(ctx, t)
-	}
 
 	quit := make(chan error)
 	go processSignals(map[os.Signal]func(){

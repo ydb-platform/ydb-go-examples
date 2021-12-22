@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"path"
 	"text/template"
 	"time"
@@ -35,11 +36,11 @@ FROM AS_TABLE($ordersData);
 `))
 
 func prepareScheme(ctx context.Context, db ydb.Connection, prefix string) (err error) {
-	err = db.Scheme().CleanupDatabase(ctx, prefix, "orders")
+	err = sugar.RmPath(ctx, db, prefix, "orders")
 	if err != nil {
 		return err
 	}
-	err = db.Scheme().EnsurePathExists(ctx, prefix)
+	err = sugar.MakePath(ctx, db, prefix)
 	if err != nil {
 		return err
 	}

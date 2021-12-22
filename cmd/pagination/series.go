@@ -4,13 +4,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"path"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table/resultset"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/result"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 
 	"github.com/ydb-platform/ydb-go-examples/internal/cli"
@@ -33,11 +34,11 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	}
 	defer func() { _ = db.Close(ctx) }()
 
-	err = db.Scheme().CleanupDatabase(ctx, params.Prefix(), "schools")
+	err = sugar.RmPath(ctx, db, params.Prefix(), "schools")
 	if err != nil {
 		return err
 	}
-	err = db.Scheme().EnsurePathExists(ctx, params.Prefix())
+	err = sugar.MakePath(ctx, db, params.Prefix())
 	if err != nil {
 		return err
 	}
@@ -92,7 +93,7 @@ func selectPaging(
 
 	readTx := table.TxControl(table.BeginTx(table.WithOnlineReadOnly()), table.CommitTx())
 
-	var res resultset.Result
+	var res result.Result
 	err = c.Do(
 		ctx,
 		func(ctx context.Context, s table.Session) (err error) {
