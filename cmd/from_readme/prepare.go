@@ -36,11 +36,11 @@ FROM AS_TABLE($ordersData);
 `))
 
 func prepareScheme(ctx context.Context, db ydb.Connection, prefix string) (err error) {
-	err = sugar.RmPath(ctx, db, prefix, "orders")
+	err = sugar.RemoveRecursive(ctx, db, prefix)
 	if err != nil {
 		return err
 	}
-	err = sugar.MakePath(ctx, db, prefix)
+	err = sugar.MakeRecursive(ctx, db, prefix)
 	if err != nil {
 		return err
 	}

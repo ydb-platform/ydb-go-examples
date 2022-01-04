@@ -45,11 +45,11 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 		cleanupDBs = append(cleanupDBs, fmt.Sprintf("expiration_queue_%v", i))
 	}
 
-	err = sugar.RmPath(ctx, db, params.Prefix(), cleanupDBs...)
+	err = sugar.RemoveRecursive(ctx, db, params.Prefix())
 	if err != nil {
 		return err
 	}
-	err = sugar.MakePath(ctx, db, params.Prefix())
+	err = sugar.MakeRecursive(ctx, db, params.Prefix())
 	if err != nil {
 		return err
 	}

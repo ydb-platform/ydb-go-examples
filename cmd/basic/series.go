@@ -96,12 +96,12 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	}
 	defer func() { _ = db.Close(ctx) }()
 
-	err = sugar.RmPath(ctx, db, params.Prefix(), "series", "episodes", "seasons")
+	err = sugar.RemoveRecursive(ctx, db, params.Prefix())
 	if err != nil {
 		return err
 	}
 
-	err = sugar.MakePath(ctx, db, params.Prefix())
+	err = sugar.MakeRecursive(ctx, db, params.Prefix())
 	if err != nil {
 		return err
 	}

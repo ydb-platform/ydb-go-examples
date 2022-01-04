@@ -116,14 +116,13 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	}
 	defer func() { _ = db.Close(ctx) }()
 
-	tableName := cmd.table
 	cmd.table = path.Join(params.Prefix(), cmd.table)
 
-	err = sugar.RmPath(ctx, db, params.Prefix(), tableName)
+	err = sugar.RemoveRecursive(ctx, db, params.Prefix())
 	if err != nil {
 		return err
 	}
-	err = sugar.MakePath(ctx, db, params.Prefix())
+	err = sugar.MakeRecursive(ctx, db, params.Prefix())
 	if err != nil {
 		return err
 	}
@@ -132,7 +131,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 		return wrap(err, "failed to test uniform partitions")
 	}
 
-	err = sugar.RmPath(ctx, db, params.Prefix(), tableName)
+	err = sugar.RemoveRecursive(ctx, db, params.Prefix())
 	if err != nil {
 		return err
 	}
