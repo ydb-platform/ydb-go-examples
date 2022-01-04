@@ -6,11 +6,11 @@
 
 Example | Description | Run command
 --- | --- | ---
-`cmd/auth/access_token_credentials` | authenticate with access token credentials | see [README.md](cmd/access_token_credentials/README.md)
-`cmd/auth/anonymous_credentials` | authenticate with anonymous credentials | see [README.md](cmd/anonymous_credentials/README.md)
-`cmd/auth/metadata_credentials` | authenticate with metadata credentials | see [README.md](cmd/metadata_credentials/README.md)
-`cmd/auth/service_account_credentials` | authenticate with service account credentials | see [README.md](cmd/service_account_credentials/README.md)
-`cmd/auth/environ` | authenticate using environment variables | see [README.md](cmd/environ/README.md)
+`cmd/auth/access_token_credentials` | authenticate with access token credentials | see [README.md](https://github.com/ydb-platform/ydb-go-examples/tree/master/cmd/auth/access_token_credentials#readme)
+`cmd/auth/anonymous_credentials` | authenticate with anonymous credentials | see [README.md](https://github.com/ydb-platform/ydb-go-examples/tree/master/cmd/auth/anonymous_credentials#readme)
+`cmd/auth/metadata_credentials` | authenticate with metadata credentials | see [README.md](https://github.com/ydb-platform/ydb-go-examples/tree/master/cmd/auth/metadata_credentials#readme)
+`cmd/auth/service_account_credentials` | authenticate with service account credentials | see [README.md](https://github.com/ydb-platform/ydb-go-examples/tree/master/cmd/auth/service_account_credentials#readme)
+`cmd/auth/environ` | authenticate using environment variables | see [README.md](https://github.com/ydb-platform/ydb-go-examples/tree/master/cmd/auth/environ#readme)
 `cmd/basic` | store and read the series  | `make basic`
 `cmd/bulk_upsert` | bulk upserting data | `make bulk_upsert`
 `cmd/containers` | containers example | `make containers`
