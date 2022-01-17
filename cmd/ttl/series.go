@@ -4,12 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"math/rand"
 	"path"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/result"
@@ -19,16 +19,16 @@ import (
 )
 
 const (
-	DocTablePartitionCount = 4
-	ExpirationQueueCount   = 4
+	docTablePartitionCount = 4
+	expirationQueueCount   = 4
 )
 
-type Command struct {
+type command struct {
 }
 
-func (cmd *Command) ExportFlags(context.Context, *flag.FlagSet) {}
+func (cmd *command) ExportFlags(context.Context, *flag.FlagSet) {}
 
-func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
+func (cmd *command) Run(ctx context.Context, params cli.Parameters) error {
 	db, err := ydb.New(
 		ctx,
 		ydb.WithConnectParams(params.ConnectParams),
@@ -41,7 +41,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	defer func() { _ = db.Close(ctx) }()
 
 	cleanupDBs := []string{"documents"}
-	for i := 0; i < ExpirationQueueCount; i++ {
+	for i := 0; i < expirationQueueCount; i++ {
 		cleanupDBs = append(cleanupDBs, fmt.Sprintf("expiration_queue_%v", i))
 	}
 
@@ -84,7 +84,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 		return fmt.Errorf("read document failed: %w", err)
 	}
 
-	for i := uint64(0); i < ExpirationQueueCount; i++ {
+	for i := uint64(0); i < expirationQueueCount; i++ {
 		if err = deleteExpired(ctx, db.Table(), params.Prefix(), i, 1); err != nil {
 			return fmt.Errorf("delete expired failed: %w", err)
 		}
@@ -111,7 +111,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 		return fmt.Errorf("add document failed: %w", err)
 	}
 
-	for i := uint64(0); i < ExpirationQueueCount; i++ {
+	for i := uint64(0); i < expirationQueueCount; i++ {
 		if err = deleteExpired(ctx, db.Table(), params.Prefix(), i, 2); err != nil {
 			return fmt.Errorf("delete expired failed: %w", err)
 		}
@@ -314,7 +314,7 @@ func readDocument(ctx context.Context, c table.Client, prefix, url string) error
 func addDocument(ctx context.Context, c table.Client, prefix, url, html string, timestamp uint64) error {
 	fmt.Printf("> AddDocument: \n\tUrl: %v\n\tTimestamp: %v\n", url, timestamp)
 
-	queue := rand.Intn(ExpirationQueueCount)
+	queue := rand.Intn(expirationQueueCount)
 	query := fmt.Sprintf(`
 		PRAGMA TablePathPrefix("%v");
 
@@ -366,7 +366,7 @@ func createTables(ctx context.Context, c table.Client, prefix string) (err error
 				options.WithPrimaryKeyColumn("doc_id"),
 				options.WithProfile(
 					options.WithPartitioningPolicy(
-						options.WithPartitioningPolicyUniformPartitions(uint64(DocTablePartitionCount)))),
+						options.WithPartitioningPolicyUniformPartitions(uint64(docTablePartitionCount)))),
 			)
 		},
 	)
@@ -374,7 +374,7 @@ func createTables(ctx context.Context, c table.Client, prefix string) (err error
 		return err
 	}
 
-	for i := 0; i < ExpirationQueueCount; i++ {
+	for i := 0; i < expirationQueueCount; i++ {
 		err = c.Do(
 			ctx,
 			func(ctx context.Context, s table.Session) error {

@@ -12,11 +12,11 @@ import (
 	"github.com/ydb-platform/ydb-go-examples/internal/cli"
 )
 
-type Command struct {
+type command struct {
 	port int
 }
 
-func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
+func (cmd *command) Run(ctx context.Context, params cli.Parameters) error {
 	s, err := newService(ctx, ydb.WithConnectParams(params.ConnectParams))
 	if err != nil {
 		return fmt.Errorf("error on create service: %w", err)
@@ -25,6 +25,6 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	return http.ListenAndServe(":"+strconv.Itoa(cmd.port), http.HandlerFunc(s.Router))
 }
 
-func (cmd *Command) ExportFlags(_ context.Context, flagSet *flag.FlagSet) {
+func (cmd *command) ExportFlags(_ context.Context, flagSet *flag.FlagSet) {
 	flagSet.IntVar(&cmd.port, "port", 80, "http port for web-server")
 }

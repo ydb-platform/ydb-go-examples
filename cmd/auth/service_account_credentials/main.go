@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	cli.Run(new(Command))
+	cli.Run(new(command))
 }

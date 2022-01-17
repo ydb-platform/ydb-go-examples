@@ -148,10 +148,10 @@ func getEpisodesData() types.Value {
 	)
 }
 
-const DateISO8601 = "2006-01-02"
+const dateISO8601 = "2006-01-02"
 
 func days(date string) time.Time {
-	t, err := time.Parse(DateISO8601, date)
+	t, err := time.Parse(dateISO8601, date)
 	if err != nil {
 		panic(err)
 	}

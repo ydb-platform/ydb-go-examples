@@ -4,11 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"path"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/result"
@@ -18,16 +18,16 @@ import (
 )
 
 const (
-	DocTablePartitionCount = 4
-	DeleteBatchSize        = 10
+	docTablePartitionCount = 4
+	deleteBatchSize        = 10
 )
 
-type Command struct {
+type command struct {
 }
 
-func (cmd *Command) ExportFlags(context.Context, *flag.FlagSet) {}
+func (cmd *command) ExportFlags(context.Context, *flag.FlagSet) {}
 
-func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
+func (cmd *command) Run(ctx context.Context, params cli.Parameters) error {
 	db, err := ydb.New(
 		ctx,
 		ydb.WithConnectParams(params.ConnectParams),
@@ -265,7 +265,7 @@ func deleteExpiredRange(ctx context.Context, c table.Client, prefix string, time
 			if ts <= timestamp {
 				docIds = append(docIds, docID)
 			}
-			if len(docIds) >= DeleteBatchSize {
+			if len(docIds) >= deleteBatchSize {
 				if err := deleteExpiredDocuments(ctx, c, prefix, docIds, timestamp); err != nil {
 					return err
 				}
@@ -414,7 +414,7 @@ func createTables(ctx context.Context, c table.Client, prefix string) (err error
 				options.WithPrimaryKeyColumn("doc_id"),
 				options.WithProfile(
 					options.WithPartitioningPolicy(
-						options.WithPartitioningPolicyUniformPartitions(uint64(DocTablePartitionCount)))),
+						options.WithPartitioningPolicyUniformPartitions(uint64(docTablePartitionCount)))),
 			)
 		},
 	)

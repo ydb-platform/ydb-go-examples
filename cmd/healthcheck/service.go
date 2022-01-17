@@ -130,12 +130,17 @@ func (s *service) check(ctx context.Context, urls []string) (err error) {
 	}
 	codes := &sync.Map{}
 	wg := &sync.WaitGroup{}
-	wg.Add(len(urls))
-	for _, u := range urls {
-		go func(u string) {
-			defer wg.Done()
-			codes.Store(u, s.ping(u))
-		}(u)
+	for _, url := range urls {
+		for _, u := range strings.Split(url, " ") {
+			wg.Add(1)
+			go func(u string) {
+				defer wg.Done()
+				fmt.Println("check", u)
+				code := s.ping(u)
+				fmt.Println(u, "checked:", code)
+				codes.Store(u, code)
+			}(u)
+		}
 	}
 	wg.Wait()
 

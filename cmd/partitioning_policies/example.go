@@ -5,12 +5,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"log"
 	"path"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
@@ -18,7 +18,7 @@ import (
 	"github.com/ydb-platform/ydb-go-examples/internal/cli"
 )
 
-type Command struct {
+type command struct {
 	table string
 }
 
@@ -29,7 +29,7 @@ func wrap(err error, explanation string) error {
 	return err
 }
 
-func (cmd *Command) testUniformPartitions(ctx context.Context, c table.Client) error {
+func (cmd *command) testUniformPartitions(ctx context.Context, c table.Client) error {
 	log.Printf("Create uniform partitions table: %v\n", cmd.table)
 
 	err := c.Do(
@@ -65,7 +65,7 @@ func (cmd *Command) testUniformPartitions(ctx context.Context, c table.Client) e
 	return wrap(err, "failed to execute operation")
 }
 
-func (cmd *Command) testExplicitPartitions(ctx context.Context, c table.Client) error {
+func (cmd *command) testExplicitPartitions(ctx context.Context, c table.Client) error {
 	log.Printf("Create explicit partitions table: %v\n", cmd.table)
 
 	err := c.Do(
@@ -104,7 +104,7 @@ func (cmd *Command) testExplicitPartitions(ctx context.Context, c table.Client) 
 	return wrap(err, "failed to execute operation")
 }
 
-func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
+func (cmd *command) Run(ctx context.Context, params cli.Parameters) error {
 	db, err := ydb.New(
 		ctx,
 		ydb.WithConnectParams(params.ConnectParams),
@@ -143,6 +143,6 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	return nil
 }
 
-func (cmd *Command) ExportFlags(_ context.Context, flagSet *flag.FlagSet) {
+func (cmd *command) ExportFlags(_ context.Context, flagSet *flag.FlagSet) {
 	flagSet.StringVar(&cmd.table, "table", "explicit_partitions_example", "Path for table")
 }

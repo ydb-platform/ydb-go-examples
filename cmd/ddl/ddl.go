@@ -71,10 +71,10 @@ ALTER TABLE small_table3 SET (TTL = Interval("PT3H") ON d);
 `
 )
 
-type Command struct {
+type command struct {
 }
 
-func (cmd *Command) ExportFlags(context.Context, *flag.FlagSet) {}
+func (cmd *command) ExportFlags(context.Context, *flag.FlagSet) {}
 
 func executeQuery(ctx context.Context, c table.Client, prefix string, query string) (err error) {
 	err = c.Do(
@@ -90,7 +90,7 @@ func executeQuery(ctx context.Context, c table.Client, prefix string, query stri
 	return nil
 }
 
-func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
+func (cmd *command) Run(ctx context.Context, params cli.Parameters) error {
 	db, err := ydb.New(
 		ctx,
 		ydb.WithConnectParams(params.ConnectParams),

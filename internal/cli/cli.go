@@ -33,7 +33,9 @@ func (p *Parameters) Prefix() string {
 }
 
 type Command interface {
+	// Run runs logic of program
 	Run(context.Context, Parameters) error
+	// ExportFlags provide cli flag set extension with custom program flags
 	ExportFlags(context.Context, *flag.FlagSet)
 }
 
@@ -45,6 +47,7 @@ func (f CommandFunc) Run(ctx context.Context, params Parameters) error {
 
 func (f CommandFunc) ExportFlags(context.Context, *flag.FlagSet) {}
 
+// Run makes common initialization and runs custom command
 func Run(cmd Command) {
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 

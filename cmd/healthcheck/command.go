@@ -6,28 +6,29 @@ import (
 	"fmt"
 	"time"
 
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 
 	"github.com/ydb-platform/ydb-go-examples/internal/cli"
 )
 
-type Command struct {
+type command struct {
 	urls string
 }
 
-func (cmd *Command) ExportFlags(ctx context.Context, flagSet *flag.FlagSet) {
+func (cmd *command) ExportFlags(ctx context.Context, flagSet *flag.FlagSet) {
 	flagSet.StringVar(&cmd.urls, "urls", "", "URLs for check")
 }
 
-func (cmd *Command) Run(ctx context.Context, params cli.Parameters) (err error) {
+func (cmd *command) Run(ctx context.Context, params cli.Parameters) (err error) {
 	s, err := newService(
 		ctx,
 		ydb.WithConnectParams(params.ConnectParams),
+		environ.WithEnvironCredentials(ctx),
 	)
 	if err != nil {
 		return fmt.Errorf("error on create service: %w", err)
 	}
-	fmt.Println(params.Args)
 	defer s.Close(ctx)
 	for {
 		if err := s.check(ctx, params.Args); err != nil {

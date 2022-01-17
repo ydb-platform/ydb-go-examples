@@ -5,7 +5,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"log"
 	"path"
 	"text/template"
@@ -13,6 +12,7 @@ import (
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/result"
@@ -77,12 +77,12 @@ SELECT
 FROM AS_TABLE($episodesData);
 `))
 
-type Command struct {
+type command struct {
 }
 
-func (cmd *Command) ExportFlags(context.Context, *flag.FlagSet) {}
+func (cmd *command) ExportFlags(context.Context, *flag.FlagSet) {}
 
-func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
+func (cmd *command) Run(ctx context.Context, params cli.Parameters) error {
 	db, err := ydb.New(
 		ctx,
 		ydb.WithConnectParams(params.ConnectParams),

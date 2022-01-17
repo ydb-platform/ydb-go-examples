@@ -52,7 +52,7 @@ var query = template.Must(template.New("fill database").Parse(`
 	SELECT Variant(42, "2", $variantTupleType);
 `))
 
-type Command struct {
+type command struct {
 }
 
 type exampleStruct struct {
@@ -169,9 +169,9 @@ func (*variantTuple) UnmarshalYDB(res types.RawValue) error {
 	return res.Err()
 }
 
-func (cmd *Command) ExportFlags(context.Context, *flag.FlagSet) {}
+func (cmd *command) ExportFlags(context.Context, *flag.FlagSet) {}
 
-func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
+func (cmd *command) Run(ctx context.Context, params cli.Parameters) error {
 	db, err := ydb.New(
 		ctx,
 		ydb.WithConnectParams(params.ConnectParams),

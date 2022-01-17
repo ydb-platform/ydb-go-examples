@@ -1,5 +1,8 @@
 all: basic bulk_upsert containers ddl decimal healthcheck pagination partitioning_policies read_table ttl ttl_readtable url_shortener
 
+lint:
+	golangci-lint run ./cmd/basic ./cmd/bulk_upsert ./cmd/containers ./cmd/ddl ./cmd/decimal ./cmd/healthcheck ./cmd/pagination ./cmd/partitioning_policies ./cmd/read_table ./cmd/ttl ./cmd/ttl_readtable ./cmd/url_shortener
+
 basic:
 	go run ./cmd/basic -ydb=${DSN} -prefix=basic
 
@@ -16,7 +19,7 @@ decimal:
 	go run ./cmd/decimal -ydb=${DSN} -prefix=decimal
 
 healthcheck:
-	go run ./cmd/healthcheck -ydb=${DSN} -prefix=healthcheck
+	go run ./cmd/healthcheck -ydb=${DSN} -prefix=healthcheck ya.ru google.com
 
 pagination:
 	go run ./cmd/pagination -ydb=${DSN} -prefix=pagination

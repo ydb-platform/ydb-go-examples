@@ -4,13 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"log"
 	"path"
 	"time"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
@@ -18,9 +18,9 @@ import (
 	"github.com/ydb-platform/ydb-go-examples/internal/cli"
 )
 
-const BatchSize = 1000
+const batchSize = 1000
 
-type Command struct {
+type command struct {
 	table string
 	count int
 }
@@ -42,7 +42,7 @@ func wrap(err error, explanation string) error {
 
 func getLogBatch(logs []logMessage, offset int) []logMessage {
 	logs = logs[:0]
-	for i := 0; i < BatchSize; i++ {
+	for i := 0; i < batchSize; i++ {
 		message := logMessage{
 			App:       fmt.Sprintf("App_%d", offset%10),
 			Host:      fmt.Sprintf("192.168.0.%d", offset%11),
@@ -60,7 +60,7 @@ func getLogBatch(logs []logMessage, offset int) []logMessage {
 	return logs
 }
 
-func (cmd *Command) createLogTable(ctx context.Context, c table.Client) error {
+func (cmd *command) createLogTable(ctx context.Context, c table.Client) error {
 	log.Printf("Create table: %v\n", cmd.table)
 	err := c.Do(
 		ctx,
@@ -78,7 +78,7 @@ func (cmd *Command) createLogTable(ctx context.Context, c table.Client) error {
 	return wrap(err, "failed to create table")
 }
 
-func (cmd *Command) writeLogBatch(ctx context.Context, c table.Client, logs []logMessage) error {
+func (cmd *command) writeLogBatch(ctx context.Context, c table.Client, logs []logMessage) error {
 	err := c.Do(
 		ctx,
 		func(ctx context.Context, session table.Session) error {
@@ -100,7 +100,7 @@ func (cmd *Command) writeLogBatch(ctx context.Context, c table.Client, logs []lo
 	return wrap(err, "failed to write log batch")
 }
 
-func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
+func (cmd *command) Run(ctx context.Context, params cli.Parameters) error {
 	db, err := ydb.New(
 		ctx,
 		ydb.WithConnectParams(params.ConnectParams),
@@ -140,7 +140,7 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	return nil
 }
 
-func (cmd *Command) ExportFlags(_ context.Context, flagSet *flag.FlagSet) {
+func (cmd *command) ExportFlags(_ context.Context, flagSet *flag.FlagSet) {
 	flagSet.IntVar(&cmd.count, "count", 1000, "count requests")
 	flagSet.StringVar(&cmd.table, "table", "bulk_upsert_example", "Path for table")
 }

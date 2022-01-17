@@ -10,10 +10,10 @@ import (
 	"github.com/ydb-platform/ydb-go-examples/internal/cli"
 )
 
-type Command struct {
+type command struct {
 }
 
-func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
+func (cmd *command) Run(ctx context.Context, params cli.Parameters) error {
 	db, err := ydb.New(
 		ctx,
 		ydb.WithConnectParams(params.ConnectParams),
@@ -34,4 +34,4 @@ func (cmd *Command) Run(ctx context.Context, params cli.Parameters) error {
 	return nil
 }
 
-func (cmd *Command) ExportFlags(context.Context, *flag.FlagSet) {}
+func (cmd *command) ExportFlags(context.Context, *flag.FlagSet) {}

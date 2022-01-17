@@ -93,7 +93,7 @@ var (
 	long  = regexp.MustCompile(`https?://(?:[-\w.]|%[\da-fA-F]{2})+`)
 )
 
-func Hash(s string) (string, error) {
+func hash(s string) (string, error) {
 	hasher := fnv.New32a()
 	_, err := hasher.Write([]byte(s))
 	if err != nil {
@@ -174,8 +174,8 @@ func (s *service) createTable(ctx context.Context) (err error) {
 	)
 }
 
-func (s *service) insertShort(ctx context.Context, url string) (hash string, err error) {
-	hash, err = Hash(url)
+func (s *service) insertShort(ctx context.Context, url string) (h string, err error) {
+	h, err = hash(url)
 	if err != nil {
 		return "", err
 	}
@@ -206,7 +206,7 @@ func (s *service) insertShort(ctx context.Context, url string) (hash string, err
 		func(ctx context.Context, s table.Session) (err error) {
 			_, _, err = s.Execute(ctx, writeTx, query,
 				table.NewQueryParameters(
-					table.ValueParam("$hash", types.UTF8Value(hash)),
+					table.ValueParam("$hash", types.UTF8Value(h)),
 					table.ValueParam("$src", types.UTF8Value(url)),
 				),
 				options.WithCollectStatsModeBasic(),
@@ -214,7 +214,7 @@ func (s *service) insertShort(ctx context.Context, url string) (hash string, err
 			return
 		},
 	)
-	return hash, err
+	return h, err
 }
 
 func (s *service) selectLong(ctx context.Context, hash string) (url string, err error) {
