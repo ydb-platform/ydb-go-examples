@@ -4,5 +4,6 @@
 
 ## Runing code snippet
 ```bash
-metadata_credentials -ydb="grpcs://endpoint/?database=database"
+export YDB_CONNECTION_STRING="grpcs://endpoint/?database=database"
+metadata_credentials
 ```

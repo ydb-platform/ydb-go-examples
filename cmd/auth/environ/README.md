@@ -11,11 +11,19 @@ Authenticate produced with one of next environment variables:
 
 ## Runing code snippet
 ```bash
-YDB_SERVICE_ACCOUNT_KEY_FILE_CREDENTIALS=/Users/user/.ydb/sa.jsoon environ -ydb="grpcs://endpoint/?database=database"
+export YDB_CONNECTION_STRING="grpcs://endpoint/?database=database"
+export YDB_SERVICE_ACCOUNT_KEY_FILE_CREDENTIALS=/Users/user/.ydb/sa.jsoon 
+environ
 # or
-YDB_ANONYMOUS_CREDENTIALS="1" environ -ydb="grpcs://endpoint/?database=database"
+export YDB_CONNECTION_STRING="grpcs://endpoint/?database=database"
+export YDB_ANONYMOUS_CREDENTIALS="1" 
+environ
 # or
-YDB_METADATA_CREDENTIALS="1" environ -ydb="grpcs://endpoint/?database=database"
+export YDB_CONNECTION_STRING="grpcs://endpoint/?database=database"
+export YDB_METADATA_CREDENTIALS="1" 
+environ
 # or
-YDB_ACCESS_TOKEN_CREDENTIALS="YDB_ACCESS_TOKEN" environ -ydb="grpcs://endpoint/?database=database"
+export YDB_CONNECTION_STRING="grpcs://endpoint/?database=database"
+export YDB_ACCESS_TOKEN_CREDENTIALS="YDB_ACCESS_TOKEN"
+environ
 ```

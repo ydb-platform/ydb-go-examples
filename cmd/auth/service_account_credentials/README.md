@@ -4,5 +4,7 @@
 
 ## Runing code snippet
 ```bash
-service_account_credentials -ydb="grpcs://endpoint/?database=database" -service-account-key-file=/Users/user/.ydb/sa.json
+export YDB_CONNECTION_STRING="grpcs://endpoint/?database=database"
+export YDB_SERVICE_ACCOUNT_KEY_FILE_CREDENTIALS=/Users/user/.ydb/sa.jsoon 
+service_account_credentials
 ```

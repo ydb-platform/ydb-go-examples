@@ -4,6 +4,8 @@
 
 ## Runing code snippet
 ```bash
-access_token_credentials -ydb="grpcs://endpoint/?database=database" -ydb-access-token="YPUR_ACCESS_TOKEN"
+export YDB_CONNECTION_STRING="grpcs://endpoint/?database=database"
+export YDB_TOKEN="mytoken"
+access_token_credentials
 ```
 

@@ -4,7 +4,8 @@
 
 ## Runing code snippet
 ```bash
-anonymous_credentials -ydb="grpcs://endpoint/?database=database"
+export YDB_CONNECTION_STRING="grpcs://endpoint/?database=database"
+anonymous_credentials
 ```
 
 

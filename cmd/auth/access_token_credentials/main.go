@@ -1,9 +1,30 @@
 package main
 
 import (
-	"github.com/ydb-platform/ydb-go-examples/internal/cli"
+	"context"
+	"fmt"
+	"os"
+
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 )
 
 func main() {
-	cli.Run(new(Command))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	db, err := ydb.New(
+		ctx,
+		ydb.WithConnectionString(os.Getenv("YDB_CONNECTION_STRING")),
+		ydb.WithAccessTokenCredentials(os.Getenv("YDB_TOKEN")),
+	)
+	if err != nil {
+		panic(err)
+	}
+	defer func() { _ = db.Close(ctx) }()
+
+	whoAmI, err := db.Discovery().WhoAmI(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(whoAmI.String())
 }
