@@ -272,4 +272,4 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Test
-        run: go run ./partitioning_policies -ydb=${YDB_CONNECTION_STRING} -prefix=partitioning_policies
+        run: go run ./partitioning_policies -ydb=${YDB_CONNECTION_STRING} -prefix=partitioning_policies -table=partitioning_policies
