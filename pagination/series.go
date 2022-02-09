@@ -68,7 +68,7 @@ func selectPaging(
 				err = res.ScanNamed(
 					named.Optional("city", &lastCity),
 					named.Optional("number", &lastNum),
-					named.Required("address", &addr),
+					named.OptionalWithDefault("address", &addr),
 				)
 				if err != nil {
 					return err
