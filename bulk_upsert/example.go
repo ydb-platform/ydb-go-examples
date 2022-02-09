@@ -32,9 +32,9 @@ func getLogBatch(logs []logMessage, offset int) []logMessage {
 	logs = logs[:0]
 	for i := 0; i < batchSize; i++ {
 		message := logMessage{
-			App:       fmt.Sprintf("App_%d", offset%10),
-			Host:      fmt.Sprintf("192.168.0.%d", offset%11),
-			Timestamp: time.Now().Add(time.Millisecond * time.Duration(i%1000)),
+			App:       fmt.Sprintf("App_%d", offset/256),
+			Host:      fmt.Sprintf("192.168.0.%d", offset%256),
+			Timestamp: time.Now().Add(time.Millisecond * time.Duration(offset+i%1000)),
 			HTTPCode:  200,
 		}
 		if i%2 == 0 {
