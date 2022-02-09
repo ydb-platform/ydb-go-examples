@@ -15,6 +15,7 @@ import (
 var (
 	dsn    string
 	prefix string
+	count  int
 	urls   = URLs{}
 )
 
@@ -55,6 +56,10 @@ func init() {
 		"url",
 		"url for health check",
 	)
+	flagSet.IntVar(&count,
+		"count", -1,
+		"count of needed checks (one check per minute, -1 - for busy loop)",
+	)
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		flagSet.Usage()
 		os.Exit(1)
@@ -85,7 +90,7 @@ func main() {
 		panic(fmt.Errorf("error on create service: %w", err))
 	}
 	defer s.Close(ctx)
-	for {
+	for i := 0; i < count || count < 0; i++ {
 		if err := s.check(ctx, urls.urls); err != nil {
 			panic(fmt.Errorf("error on check URLS %v: %w", urls, err))
 		}
