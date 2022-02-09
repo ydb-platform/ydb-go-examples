@@ -71,7 +71,7 @@ func main() {
 	}
 	defer func() { _ = db.Close(ctx) }()
 
-	tablePath = path.Join(prefix, tablePath)
+	tablePath = path.Join(db.Name(), prefix, tablePath)
 
 	err = sugar.RemoveRecursive(ctx, db, prefix)
 	if err != nil {
