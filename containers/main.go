@@ -12,14 +12,12 @@ import (
 )
 
 var (
-	dsn       string
-	prefix    string
-	tablePath string
-	count     int
+	dsn    string
+	prefix string
 )
 
 func init() {
-	required := []string{"ydb", "table"}
+	required := []string{"ydb"}
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	flagSet.Usage = func() {
 		out := flagSet.Output()
@@ -34,14 +32,6 @@ func init() {
 	flagSet.StringVar(&prefix,
 		"prefix", "",
 		"tables prefix",
-	)
-	flagSet.IntVar(&count,
-		"count", 1000,
-		"count requests",
-	)
-	flagSet.StringVar(&tablePath,
-		"table", "bulk_upsert_example",
-		"Path for table",
 	)
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		flagSet.Usage()
