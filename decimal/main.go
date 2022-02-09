@@ -131,6 +131,9 @@ func main() {
 			if err != nil {
 				return err
 			}
+			defer func() {
+				_ = res.Close()
+			}()
 			var p *types.Decimal
 			for res.NextResultSet(ctx) {
 				for res.NextRow() {

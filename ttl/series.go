@@ -111,35 +111,44 @@ func deleteDocumentWithTimestamp(ctx context.Context, c table.Client, prefix str
 	return err
 }
 
-func deleteExpired(ctx context.Context, c table.Client, prefix string, queue, timestamp uint64) error {
+func deleteExpired(ctx context.Context, c table.Client, prefix string, queue, timestamp uint64) (err error) {
 	fmt.Printf("> DeleteExpired from queue #%d:\n", queue)
 	empty := false
 	lastTimestamp := uint64(0)
 	lastDocID := uint64(0)
 
 	for !empty {
-		res, err := readExpiredBatchTransaction(ctx, c, prefix, queue, timestamp, lastTimestamp, lastDocID)
+		err = func() error { // for isolate defer inside lambda
+			res, err := readExpiredBatchTransaction(ctx, c, prefix, queue, timestamp, lastTimestamp, lastDocID)
+			if err != nil {
+				return err
+			}
+			defer func() {
+				_ = res.Close()
+			}()
+
+			empty = true
+			res.NextResultSet(ctx)
+			for res.NextRow() {
+				empty = false
+				err = res.ScanNamed(
+					named.OptionalWithDefault("doc_id", &lastDocID),
+					named.OptionalWithDefault("ts", &lastTimestamp),
+				)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("\tDocId: %d\n\tTimestamp: %d\n", lastDocID, lastTimestamp)
+
+				err = deleteDocumentWithTimestamp(ctx, c, prefix, queue, lastDocID, lastTimestamp)
+				if err != nil {
+					return err
+				}
+			}
+			return res.Err()
+		}()
 		if err != nil {
 			return err
-		}
-
-		empty = true
-		res.NextResultSet(ctx)
-		for res.NextRow() {
-			empty = false
-			err = res.ScanNamed(
-				named.OptionalWithDefault("doc_id", &lastDocID),
-				named.OptionalWithDefault("ts", &lastTimestamp),
-			)
-			if err != nil {
-				return err
-			}
-			fmt.Printf("\tDocId: %d\n\tTimestamp: %d\n", lastDocID, lastTimestamp)
-
-			err = deleteDocumentWithTimestamp(ctx, c, prefix, queue, lastDocID, lastTimestamp)
-			if err != nil {
-				return err
-			}
 		}
 	}
 	return nil
@@ -161,7 +170,6 @@ func readDocument(ctx context.Context, c table.Client, prefix, url string) error
 
 	readTx := table.TxControl(table.BeginTx(table.WithOnlineReadOnly()), table.CommitTx())
 
-	var res result.Result
 	err := c.Do(
 		ctx,
 		func(ctx context.Context, s table.Session) (err error) {
@@ -169,38 +177,42 @@ func readDocument(ctx context.Context, c table.Client, prefix, url string) error
 			if err != nil {
 				return err
 			}
-			_, res, err = stmt.Execute(ctx, readTx, table.NewQueryParameters(
+			_, res, err := stmt.Execute(ctx, readTx, table.NewQueryParameters(
 				table.ValueParam("$url", types.UTF8Value(url)),
 			))
-			return err
+			if err != nil {
+				return err
+			}
+			defer func() {
+				_ = res.Close()
+			}()
+			var (
+				docID  *uint64
+				docURL *string
+				ts     *uint64
+				html   *string
+			)
+			if res.NextResultSet(ctx) && res.NextRow() {
+				err = res.ScanNamed(
+					named.Optional("doc_id", &docID),
+					named.Optional("url", &docURL),
+					named.Optional("ts", &ts),
+					named.Optional("html", &html),
+				)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("\tDocId: %v\n", docID)
+				fmt.Printf("\tUrl: %v\n", docURL)
+				fmt.Printf("\tTimestamp: %v\n", ts)
+				fmt.Printf("\tHtml: %v\n", html)
+			} else {
+				fmt.Println("\tNot found")
+			}
+			return res.Err()
 		},
 	)
-	if err != nil {
-		return err
-	}
-	if res.Err() != nil {
-		return res.Err()
-	}
-	var (
-		docID  *uint64
-		docURL *string
-		ts     *uint64
-		html   *string
-	)
-	if res.NextResultSet(ctx, "doc_id", "url", "ts", "html") && res.NextRow() {
-		err = res.Scan(&docID, &docURL, &ts, &html)
-		if err != nil {
-			return err
-		}
-		fmt.Printf("\tDocId: %v\n", docID)
-		fmt.Printf("\tUrl: %v\n", docURL)
-		fmt.Printf("\tTimestamp: %v\n", ts)
-		fmt.Printf("\tHtml: %v\n", html)
-	} else {
-		fmt.Println("\tNot found")
-	}
-
-	return nil
+	return err
 }
 
 func addDocument(ctx context.Context, c table.Client, prefix, url, html string, timestamp uint64) error {

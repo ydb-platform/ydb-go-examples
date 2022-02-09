@@ -189,17 +189,22 @@ func readDocument(ctx context.Context, c table.Client, prefix, url string) error
 	if err != nil {
 		return err
 	}
-	if res.Err() != nil {
-		return res.Err()
-	}
+	defer func() {
+		_ = res.Close()
+	}()
 	var (
 		docID  *uint64
 		docURL *string
 		ts     *uint64
 		html   *string
 	)
-	if res.NextResultSet(ctx, "doc_id", "url", "ts", "html") && res.NextRow() {
-		err = res.Scan(&docID, &docURL, &ts, &html)
+	if res.NextResultSet(ctx) && res.NextRow() {
+		err = res.ScanNamed(
+			named.Optional("doc_id", &docID),
+			named.Optional("url", &docURL),
+			named.Optional("ts", &ts),
+			named.Optional("html", &html),
+		)
 		if err != nil {
 			return err
 		}
@@ -211,7 +216,7 @@ func readDocument(ctx context.Context, c table.Client, prefix, url string) error
 		fmt.Println("\tNot found")
 	}
 
-	return nil
+	return res.Err()
 }
 
 func addDocument(ctx context.Context, c table.Client, prefix, url, html string, timestamp uint64) error {

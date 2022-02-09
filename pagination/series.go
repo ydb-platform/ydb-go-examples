@@ -3,11 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table/result"
-	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
@@ -44,43 +43,45 @@ func selectPaging(
 
 	readTx := table.TxControl(table.BeginTx(table.WithOnlineReadOnly()), table.CommitTx())
 
-	var res result.Result
 	err = c.Do(
 		ctx,
 		func(ctx context.Context, s table.Session) (err error) {
-			_, res, err = s.Execute(ctx, readTx, query,
+			_, res, err := s.Execute(ctx, readTx, query,
 				table.NewQueryParameters(
 					table.ValueParam("$limit", types.Uint64Value(uint64(limit))),
 					table.ValueParam("$lastCity", types.UTF8Value(*lastCity)),
 					table.ValueParam("$lastNumber", types.Uint32Value(uint32(*lastNum))),
 				),
 			)
-			return
+			if err != nil {
+				return err
+			}
+			defer func() {
+				_ = res.Close()
+			}()
+			if !res.NextResultSet(ctx) || !res.HasNextRow() {
+				empty = true
+				return
+			}
+			var addr string
+			for res.NextRow() {
+				err = res.ScanNamed(
+					named.Optional("city", &lastCity),
+					named.Optional("number", &lastNum),
+					named.Required("address", &addr),
+				)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("\t%v, School #%v, Address: %v\n", *lastCity, *lastNum, addr)
+			}
+			return res.Err()
 		},
 	)
 	if err != nil {
 		return
 	}
-	if err = res.Err(); err != nil {
-		return
-	}
-	if !res.NextResultSet(ctx) || !res.HasNextRow() {
-		empty = true
-		return
-	}
-	var addr string
-	for res.NextRow() {
-		err = res.ScanNamed(
-			named.Optional("city", &lastCity),
-			named.Optional("number", &lastNum),
-			named.Required("address", &addr),
-		)
-		if err != nil {
-			return false, err
-		}
-		fmt.Printf("\t%v, School #%v, Address: %v\n", *lastCity, *lastNum, addr)
-	}
-	return empty, res.Err()
+	return empty, nil
 }
 
 func fillTableWithData(ctx context.Context, c table.Client, prefix string) (err error) {

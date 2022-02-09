@@ -87,6 +87,9 @@ func readTable(ctx context.Context, c table.Client, path string) (err error) {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		_ = res.Close()
+	}()
 	log.Printf("\n> read_table:")
 	var (
 		id    *uint64
@@ -95,8 +98,10 @@ func readTable(ctx context.Context, c table.Client, path string) (err error) {
 	)
 	for res.NextResultSet(ctx, "series_id", "title", "release_date") {
 		for res.NextRow() {
-			_ = res.Scan(&id, &title, &date)
-
+			err = res.Scan(&id, &title, &date)
+			if err != nil {
+				return err
+			}
 			log.Printf("#  %d %s %d", *id, *title, *date)
 		}
 	}
@@ -124,7 +129,7 @@ func readTable(ctx context.Context, c table.Client, path string) (err error) {
 			)
 		}
 	}
-	return nil
+	return res.Err()
 }
 
 func describeTableOptions(ctx context.Context, c table.Client) (err error) {
@@ -211,17 +216,25 @@ func selectSimple(ctx context.Context, c table.Client, prefix string) (err error
 		return err
 	}
 
+	defer func() {
+		_ = res.Close()
+	}()
+
 	var (
 		id    *uint64
 		title *string
 		date  *[]byte
 	)
-	// TODO(kamardin): truncated flag.
-	for res.NextResultSet(ctx, "series_id", "title", "release_date") {
+	for res.NextResultSet(ctx) {
 		for res.NextRow() {
-
-			_ = res.Scan(&id, &title, &date)
-
+			err = res.ScanNamed(
+				named.Optional("series_id", &id),
+				named.Optional("title", &title),
+				named.Optional("release_date", &date),
+			)
+			if err != nil {
+				return err
+			}
 			log.Printf(
 				"\n> select_simple_transaction: %d %s %s",
 				*id, *title, *date,

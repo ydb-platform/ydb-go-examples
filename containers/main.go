@@ -74,57 +74,53 @@ func main() {
 	}
 	defer func() { _ = db.Close(ctx) }()
 
-	err = db.Table().Do(
+	err = db.Table().DoTx(
 		ctx,
-		func(ctx context.Context, s table.Session) (err error) {
-			tx, err := s.BeginTransaction(ctx, table.TxSettings(
-				table.WithSerializableReadWrite(),
-			))
-			if err != nil {
-				return err
-			}
-			defer func() {
-				_ = tx.Rollback(context.Background())
-			}()
-
+		func(ctx context.Context, tx table.TransactionActor) (err error) {
 			res, err := tx.Execute(ctx, render(query, nil), nil)
 			if err != nil {
 				return err
 			}
-			if _, err = tx.CommitTx(ctx); err != nil {
+			defer func() {
+				_ = res.Close()
+			}()
+			if err != nil {
 				return err
 			}
 
-			parsers := [...]func(){
-				func() {
-					_ = res.Scan(&exampleList{})
+			parsers := [...]func() error{
+				func() error {
+					return res.Scan(&exampleList{})
 				},
-				func() {
-					_ = res.Scan(&exampleTuple{})
+				func() error {
+					return res.Scan(&exampleTuple{})
 				},
-				func() {
-					_ = res.Scan(&exampleDict{})
+				func() error {
+					return res.Scan(&exampleDict{})
 				},
-				func() {
-					_ = res.Scan(&exampleStruct{})
+				func() error {
+					return res.Scan(&exampleStruct{})
 				},
-				func() {
-					_ = res.Scan(&variantStruct{})
+				func() error {
+					return res.Scan(&variantStruct{})
 				},
-				func() {
-					_ = res.Scan(&variantTuple{})
+				func() error {
+					return res.Scan(&variantTuple{})
 				},
 			}
 
 			for set := 0; res.NextResultSet(ctx); set++ {
 				res.NextRow()
-				parsers[set]()
-				if err = res.Err(); err != nil {
+				err = parsers[set]()
+				if err != nil {
 					return err
 				}
 			}
 			return res.Err()
 		},
+		table.WithTxSettings(table.TxSettings(
+			table.WithSerializableReadWrite(),
+		)),
 	)
 	if err != nil {
 		panic(err)
