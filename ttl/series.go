@@ -118,7 +118,7 @@ func deleteExpired(ctx context.Context, c table.Client, prefix string, queue, ti
 	lastDocID := uint64(0)
 
 	for !empty {
-		err = func() error { // for isolate defer inside lambda
+		err = func() (err error) { // for isolate defer inside lambda
 			res, err := readExpiredBatchTransaction(ctx, c, prefix, queue, timestamp, lastTimestamp, lastDocID)
 			if err != nil {
 				return err
