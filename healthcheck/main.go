@@ -90,11 +90,11 @@ func main() {
 		panic(fmt.Errorf("error on create service: %w", err))
 	}
 	defer s.Close(ctx)
-	for i := 0; ; i++ {
+	for i := 0; i < count || count < 0; i++ {
 		if err := s.check(ctx, urls.urls); err != nil {
 			panic(fmt.Errorf("error on check URLS %v: %w", urls, err))
 		}
-		if i >= count {
+		if i == count {
 			return
 		}
 		select {
