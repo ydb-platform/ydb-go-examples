@@ -65,11 +65,6 @@ func main() {
 	}
 	defer func() { _ = db.Close(ctx) }()
 
-	cleanupDBs := []string{"documents"}
-	for i := 0; i < expirationQueueCount; i++ {
-		cleanupDBs = append(cleanupDBs, fmt.Sprintf("expiration_queue_%v", i))
-	}
-
 	err = sugar.RemoveRecursive(ctx, db, prefix)
 	if err != nil {
 		panic(err)
