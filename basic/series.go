@@ -96,9 +96,13 @@ func readTable(ctx context.Context, c table.Client, path string) (err error) {
 		title *string
 		date  *uint64
 	)
-	for res.NextResultSet(ctx, "series_id", "title", "release_date") {
+	for res.NextResultSet(ctx) {
 		for res.NextRow() {
-			err = res.Scan(&id, &title, &date)
+			err = res.ScanNamed(
+				named.Optional("series_id", &id),
+				named.Optional("title", &title),
+				named.Optional("release_date", &date),
+			)
 			if err != nil {
 				return err
 			}
