@@ -41,4 +41,4 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Test
-        run: go run ./basic
+        run: go run ./basic -ydb=${YDB_CONNECTION_STRING} -prefix=basic
