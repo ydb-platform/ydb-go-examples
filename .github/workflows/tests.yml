@@ -75,7 +75,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Test
         run: go run ./bulk_upsert -ydb=${YDB_CONNECTION_STRING} -prefix=bulk_upsert -count=1000 -table=bulk_upsert_example
-  contaiers:
+  containers:
     strategy:
       matrix:
         go-version: [1.17.x]
@@ -107,7 +107,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Test
-        run: go run ./contaiers -ydb=${YDB_CONNECTION_STRING} -prefix=contaiers
+        run: go run ./containers -ydb=${YDB_CONNECTION_STRING} -prefix=containers
   ddl:
     strategy:
       matrix:
