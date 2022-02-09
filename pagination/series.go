@@ -1,0 +1,132 @@
+package main
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/ydb-platform/ydb-go-sdk/v3/table"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/result"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
+)
+
+func selectPaging(
+	ctx context.Context,
+	c table.Client,
+	prefix string,
+	limit int,
+	lastNum *uint,
+	lastCity *string,
+) (
+	empty bool,
+	err error,
+) {
+
+	var query = fmt.Sprintf(`
+		PRAGMA TablePathPrefix("%v");
+
+		DECLARE $limit AS Uint64;
+		DECLARE $lastCity AS Utf8;
+		DECLARE $lastNumber AS Uint32;
+
+		$Data = (
+			SELECT * FROM schools
+			WHERE city = $lastCity AND number > $lastNumber
+
+			UNION ALL
+
+			SELECT * FROM schools
+			WHERE city > $lastCity
+			ORDER BY city, number LIMIT $limit
+		);
+		SELECT * FROM $Data ORDER BY city, number LIMIT $limit;`, prefix)
+
+	readTx := table.TxControl(table.BeginTx(table.WithOnlineReadOnly()), table.CommitTx())
+
+	var res result.Result
+	err = c.Do(
+		ctx,
+		func(ctx context.Context, s table.Session) (err error) {
+			_, res, err = s.Execute(ctx, readTx, query,
+				table.NewQueryParameters(
+					table.ValueParam("$limit", types.Uint64Value(uint64(limit))),
+					table.ValueParam("$lastCity", types.UTF8Value(*lastCity)),
+					table.ValueParam("$lastNumber", types.Uint32Value(uint32(*lastNum))),
+				),
+			)
+			return
+		},
+	)
+	if err != nil {
+		return
+	}
+	if err = res.Err(); err != nil {
+		return
+	}
+	if !res.NextResultSet(ctx) || !res.HasNextRow() {
+		empty = true
+		return
+	}
+	var addr string
+	for res.NextRow() {
+		err = res.ScanNamed(
+			named.Optional("city", &lastCity),
+			named.Optional("number", &lastNum),
+			named.Required("address", &addr),
+		)
+		if err != nil {
+			return false, err
+		}
+		fmt.Printf("\t%v, School #%v, Address: %v\n", *lastCity, *lastNum, addr)
+	}
+	return empty, res.Err()
+}
+
+func fillTableWithData(ctx context.Context, c table.Client, prefix string) (err error) {
+	var query = fmt.Sprintf(`
+		PRAGMA TablePathPrefix("%v");
+
+		DECLARE $schoolsData AS List<Struct<
+			city: Utf8,
+			number: Uint32,
+			address: Utf8>>;
+
+		REPLACE INTO schools
+		SELECT
+			city,
+			number,
+			address
+		FROM AS_TABLE($schoolsData);`, prefix)
+
+	writeTx := table.TxControl(table.BeginTx(table.WithSerializableReadWrite()), table.CommitTx())
+
+	err = c.Do(
+		ctx,
+		func(ctx context.Context, s table.Session) (err error) {
+			_, _, err = s.Execute(ctx, writeTx, query, table.NewQueryParameters(
+				table.ValueParam("$schoolsData", getSchoolData()),
+			))
+			return err
+		})
+	return err
+}
+
+func createTable(ctx context.Context, c table.Client, path string) (err error) {
+	err = c.Do(
+		ctx,
+		func(ctx context.Context, s table.Session) error {
+			return s.CreateTable(ctx, path,
+				options.WithColumn("city", types.Optional(types.TypeUTF8)),
+				options.WithColumn("number", types.Optional(types.TypeUint32)),
+				options.WithColumn("address", types.Optional(types.TypeUTF8)),
+				options.WithPrimaryKeyColumn("city", "number"),
+			)
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
