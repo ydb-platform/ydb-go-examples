@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
@@ -73,6 +74,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
+	prefix = path.Join(db.Name(), prefix)
 
 	err = createTables(ctx, db.Table(), prefix)
 	if err != nil {
