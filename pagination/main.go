@@ -75,7 +75,9 @@ func main() {
 		panic(err)
 	}
 
-	err = createTable(ctx, db.Table(), path.Join(db.Name(), prefix, "schools"))
+	prefix = path.Join(db.Name(), prefix)
+
+	err = createTable(ctx, db.Table(), path.Join(prefix, "schools"))
 	if err != nil {
 		panic(fmt.Errorf("create tables error: %w", err))
 	}
