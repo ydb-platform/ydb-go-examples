@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
@@ -63,6 +64,8 @@ func main() {
 		panic(fmt.Errorf("connect error: %w", err))
 	}
 	defer func() { _ = db.Close(ctx) }()
+
+	prefix = path.Join(db.Name(), prefix)
 
 	//simple creation with composite primary key
 	err = executeQuery(ctx, db.Table(), prefix, simpleCreateQuery)
