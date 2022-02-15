@@ -90,7 +90,7 @@ func readTable(ctx context.Context, c table.Client, path string) (err error) {
 	defer func() {
 		_ = res.Close()
 	}()
-	log.Printf("\n> read_table:")
+	log.Printf("> read_table:")
 	var (
 		id    *uint64
 		title *string
@@ -148,7 +148,7 @@ func describeTableOptions(ctx context.Context, c table.Client) (err error) {
 	if err != nil {
 		return err
 	}
-	log.Println("\n> describe_table_options:")
+	log.Println("> describe_table_options:")
 
 	for i, p := range desc.TableProfilePresets {
 		log.Printf("TableProfilePresets: %d/%d: %+v", i+1, len(desc.TableProfilePresets), p)
@@ -289,7 +289,7 @@ func scanQuerySelect(ctx context.Context, c table.Client, prefix string) (err er
 				title    string
 				date     string
 			)
-			log.Print("\n> scan_query_select:")
+			log.Print("> scan_query_select:")
 			for res.NextResultSet(ctx) {
 				for res.NextRow() {
 					err = res.ScanNamed(
@@ -400,7 +400,7 @@ func describeTable(ctx context.Context, c table.Client, path string) (err error)
 			if err != nil {
 				return err
 			}
-			log.Printf("\n> describe table: %s", path)
+			log.Printf("> describe table: %s", path)
 			for _, c := range desc.Columns {
 				log.Printf("column, name: %s, %s", c.Type, c.Name)
 			}
