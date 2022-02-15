@@ -240,7 +240,7 @@ func selectSimple(ctx context.Context, c table.Client, prefix string) (err error
 				return err
 			}
 			log.Printf(
-				"\n> select_simple_transaction: %d %s %s",
+				"> select_simple_transaction: %d %s %s",
 				*id, *title, *date,
 			)
 		}
