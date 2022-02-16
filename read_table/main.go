@@ -8,7 +8,6 @@ import (
 	"path"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
@@ -66,6 +65,8 @@ func main() {
 		panic(fmt.Errorf("connect error: %w", err))
 	}
 	defer func() { _ = db.Close(ctx) }()
+
+	prefix = path.Join(db.Name(), prefix)
 
 	tableName := "orders"
 	fmt.Println("Read whole table, unsorted:")
