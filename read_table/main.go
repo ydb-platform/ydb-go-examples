@@ -4,11 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
-	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
@@ -70,7 +71,41 @@ func main() {
 	prefix = path.Join(db.Name(), prefix)
 
 	tableName := "orders"
-	fmt.Println("Read whole table, unsorted:")
+
+	log.Println("Drop table (if exists)...")
+	err = dropTableIfExists(
+		ctx,
+		db.Table(),
+		path.Join(prefix, tableName),
+	)
+	if err != nil {
+		panic(fmt.Errorf("drop table error: %w", err))
+	}
+	log.Println("Drop table done")
+
+	log.Println("Create table...")
+	err = createTable(
+		ctx,
+		db.Table(),
+		path.Join(prefix, tableName),
+	)
+	if err != nil {
+		panic(fmt.Errorf("create table error: %w", err))
+	}
+	log.Println("Create table done")
+
+	log.Println("Fill table...")
+	err = fillTable(
+		ctx,
+		db.Table(),
+		prefix,
+	)
+	if err != nil {
+		panic(fmt.Errorf("fill table error: %w", err))
+	}
+	log.Println("Fill table done")
+
+	log.Println("Read whole table, unsorted:")
 	err = readTable(
 		ctx,
 		db.Table(),
@@ -80,7 +115,7 @@ func main() {
 		panic(fmt.Errorf("read table error: %w", err))
 	}
 
-	fmt.Println("Sorted by composite primary key:")
+	log.Println("Sorted by composite primary key:")
 	err = readTable(
 		ctx,
 		db.Table(),
@@ -91,7 +126,7 @@ func main() {
 		panic(fmt.Errorf("read table error: %w", err))
 	}
 
-	fmt.Println("Any five rows:")
+	log.Println("Any five rows:")
 	err = readTable(
 		ctx,
 		db.Table(),
@@ -102,7 +137,7 @@ func main() {
 		panic(fmt.Errorf("read table error: %w", err))
 	}
 
-	fmt.Println("First five rows by PK (ascending) with subset of columns:")
+	log.Println("First five rows by PK (ascending) with subset of columns:")
 	err = readTable(
 		ctx,
 		db.Table(),
@@ -117,7 +152,7 @@ func main() {
 		panic(fmt.Errorf("read table error: %w", err))
 	}
 
-	fmt.Println("Read all rows with first PK component (customer_id,) greater or equal than 2 and less then 3:")
+	log.Println("Read all rows with first PK component (customer_id,) greater or equal than 2 and less then 3:")
 	keyRange := options.KeyRange{
 		From: types.TupleValue(
 			types.OptionalValue(types.Uint64Value(2)),
@@ -136,7 +171,7 @@ func main() {
 		panic(fmt.Errorf("read table error: %w", err))
 	}
 
-	fmt.Println("Read all rows with composite PK lexicographically less or equal than (1,4):")
+	log.Println("Read all rows with composite PK lexicographically less or equal than (1,4):")
 	err = readTable(
 		ctx,
 		db.Table(),
@@ -152,7 +187,7 @@ func main() {
 		panic(fmt.Errorf("read table error: %w", err))
 	}
 
-	fmt.Println("Read all rows with composite PK lexicographically greater or equal than (1,2) and less than (3,4):")
+	log.Println("Read all rows with composite PK lexicographically greater or equal than (1,2) and less than (3,4):")
 	keyRange = options.KeyRange{
 		From: types.TupleValue(
 			types.OptionalValue(types.Uint64Value(1)),
