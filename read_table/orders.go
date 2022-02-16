@@ -3,11 +3,11 @@ package main
 import (
 	"bytes"
 	"context"
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"log"
 	"text/template"
 	"time"
 
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
