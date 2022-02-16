@@ -7,15 +7,17 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 )
 
 var (
-	dsn    string
-	prefix string
-	port   int
+	dsn           string
+	prefix        string
+	port          int
+	shutdownAfter time.Duration
 )
 
 func init() {
@@ -39,6 +41,10 @@ func init() {
 		"port", 80,
 		"http port for web-server",
 	)
+	flagSet.DurationVar(&shutdownAfter,
+		"shutdown-after", -1,
+		"duration for shutdown after start",
+	)
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		flagSet.Usage()
 		os.Exit(1)
@@ -58,7 +64,16 @@ func init() {
 }
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
+	var (
+		ctx    context.Context
+		cancel context.CancelFunc
+		done   = make(chan struct{})
+	)
+	if shutdownAfter > 0 {
+		ctx, cancel = context.WithTimeout(context.Background(), shutdownAfter)
+	} else {
+		ctx, cancel = context.WithCancel(context.Background())
+	}
 	defer cancel()
 
 	s, err := newService(ctx, ydb.WithConnectionString(dsn))
@@ -67,12 +82,24 @@ func main() {
 	}
 	defer s.Close(ctx)
 
-	err = http.ListenAndServe(
-		":"+strconv.Itoa(port),
-		http.HandlerFunc(s.Router),
-	)
-	if err != nil {
-		panic(err)
+	server := &http.Server{
+		Addr:    ":" + strconv.Itoa(port),
+		Handler: http.HandlerFunc(s.Router),
+	}
+	defer func() {
+		_ = server.Shutdown(ctx)
+	}()
+
+	go func() {
+		_ = server.ListenAndServe()
+		close(done)
+	}()
+
+	select {
+	case <-ctx.Done():
+		return
+	case <-done:
+		return
 	}
 }
 
