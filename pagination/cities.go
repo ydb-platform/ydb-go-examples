@@ -28,18 +28,28 @@ func selectPaging(
 		DECLARE $limit AS Uint64;
 		DECLARE $lastCity AS Utf8;
 		DECLARE $lastNumber AS Uint32;
-
-		$Data = (
+		
+		$part1 = (
 			SELECT * FROM schools
 			WHERE city = $lastCity AND number > $lastNumber
-
-			UNION ALL
-
+			ORDER BY city, number LIMIT $limit
+		);
+		
+		$part2 = (
 			SELECT * FROM schools
 			WHERE city > $lastCity
 			ORDER BY city, number LIMIT $limit
 		);
-		SELECT * FROM $Data ORDER BY city, number LIMIT $limit;`, prefix)
+		
+		$union = (
+			SELECT * FROM $part1
+			UNION ALL
+			SELECT * FROM $part2
+		);
+		
+		SELECT * FROM $union
+		ORDER BY city, number LIMIT $limit;
+		`, prefix)
 
 	readTx := table.TxControl(table.BeginTx(table.WithOnlineReadOnly()), table.CommitTx())
 
