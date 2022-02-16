@@ -404,4 +404,4 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Test
-        run: go run ./url_shortener -ydb=${YDB_CONNECTION_STRING} -prefix=url_shortener -port=8888 -shutdown-after=55s
+        run: go run ./url_shortener -ydb=${YDB_CONNECTION_STRING} -prefix=url_shortener -port=8888 -shutdown-after=55s -log-level=WARN

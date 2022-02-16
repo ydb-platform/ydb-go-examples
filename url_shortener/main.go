@@ -4,13 +4,22 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
-	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
+	ydbMetrics "github.com/ydb-platform/ydb-go-sdk-prometheus"
+	ydbZap "github.com/ydb-platform/ydb-go-sdk-zap"
 )
 
 var (
@@ -18,6 +27,9 @@ var (
 	prefix        string
 	port          int
 	shutdownAfter time.Duration
+	logLevel      string
+
+	log *zap.Logger
 )
 
 func init() {
@@ -36,6 +48,10 @@ func init() {
 	flagSet.StringVar(&prefix,
 		"prefix", "",
 		"tables prefix",
+	)
+	flagSet.StringVar(&logLevel,
+		"log-level", "INFO",
+		"logging level",
 	)
 	flagSet.IntVar(&port,
 		"port", 80,
@@ -61,6 +77,23 @@ func init() {
 		flagSet.Usage()
 		os.Exit(1)
 	}
+
+	var err error
+	log, err = zap.NewDevelopment(
+		zap.IncreaseLevel(
+			func() zapcore.Level {
+				for l := zapcore.DebugLevel; l < zapcore.FatalLevel; l++ {
+					if l.CapitalString() == strings.ToUpper(logLevel) {
+						return l
+					}
+				}
+				return zapcore.InfoLevel
+			}(),
+		),
+	)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func main() {
@@ -76,7 +109,21 @@ func main() {
 	}
 	defer cancel()
 
-	s, err := newService(ctx, ydb.WithConnectionString(dsn))
+	s, err := newService(
+		ctx,
+		ydb.WithConnectionString(dsn),
+		ydbMetrics.WithTraces(
+			prometheus.NewRegistry(),
+			ydbMetrics.WithSeparator("_"),
+			ydbMetrics.WithDetails(
+				trace.DetailsAll,
+			),
+		),
+		ydbZap.WithTraces(
+			log,
+			trace.DetailsAll,
+		),
+	)
 	if err != nil {
 		panic(fmt.Errorf("error on create service: %w", err))
 	}
