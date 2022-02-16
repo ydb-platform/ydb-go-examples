@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"log"
 	"text/template"
 	"time"
@@ -21,13 +22,17 @@ type row struct {
 }
 
 func dropTableIfExists(ctx context.Context, c table.Client, path string) (err error) {
-	return c.Do(
+	err = c.Do(
 		ctx,
 		func(ctx context.Context, s table.Session) error {
 			return s.DropTable(ctx, path)
 		},
 		table.WithIdempotent(),
 	)
+	if !ydb.IsOperationErrorSchemeError(err) {
+		return err
+	}
+	return nil
 }
 
 func createTable(ctx context.Context, c table.Client, path string) (err error) {
