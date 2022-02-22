@@ -7,20 +7,17 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/rs/zerolog"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	ydbMetrics "github.com/ydb-platform/ydb-go-sdk-prometheus"
-	ydbZap "github.com/ydb-platform/ydb-go-sdk-zap"
+	ydbZerolog "github.com/ydb-platform/ydb-go-sdk-zerolog"
 )
 
 var (
@@ -30,7 +27,7 @@ var (
 	shutdownAfter time.Duration
 	logLevel      string
 
-	log *zap.Logger
+	log = zerolog.New(os.Stdout).With().Timestamp().Logger()
 )
 
 func init() {
@@ -51,7 +48,7 @@ func init() {
 		"tables prefix",
 	)
 	flagSet.StringVar(&logLevel,
-		"log-level", "INFO",
+		"log-level", "info",
 		"logging level",
 	)
 	flagSet.IntVar(&port,
@@ -78,21 +75,9 @@ func init() {
 		flagSet.Usage()
 		os.Exit(1)
 	}
-
-	var err error
-	log, err = zap.NewDevelopment(
-		zap.IncreaseLevel(
-			func() zapcore.Level {
-				for l := zapcore.DebugLevel; l < zapcore.FatalLevel; l++ {
-					if l.CapitalString() == strings.ToUpper(logLevel) {
-						return l
-					}
-				}
-				return zapcore.InfoLevel
-			}(),
-		),
-	)
-	if err != nil {
+	if l, err := zerolog.ParseLevel(logLevel); err == nil {
+		zerolog.SetGlobalLevel(l)
+	} else {
 		panic(err)
 	}
 }
@@ -120,8 +105,8 @@ func main() {
 				trace.DetailsAll,
 			),
 		),
-		ydbZap.WithTraces(
-			log,
+		ydbZerolog.WithTraces(
+			&log,
 			trace.DetailsAll,
 		),
 	)
