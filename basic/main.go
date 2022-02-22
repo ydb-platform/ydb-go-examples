@@ -37,7 +37,7 @@ func init() {
 		"tables prefix",
 	)
 	flagSet.DurationVar(&dialTimeout,
-		"dial-timeout", 0,
+		"dial-timeout", 5*time.Second,
 		"dial timeout",
 	)
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
