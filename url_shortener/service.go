@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
 	"text/template"
 	"time"
 
@@ -23,7 +24,7 @@ import (
 
 const (
 	invalidHashError = "'%s' is not a valid short path."
-	hashNotFound     = "'%s' path is not found"
+	hashNotFound     = "hash '%s' is not found"
 	invalidURLError  = "'%s' is not a valid URL."
 )
 
@@ -301,7 +302,7 @@ func (s *service) Router(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/text")
 		writeResponse(w, http.StatusOK, hash)
 	default:
-		path := r.URL.RawQuery
+		path := strings.TrimRight(r.URL.RawQuery, "=")
 		if !isShortCorrect(path) {
 			writeResponse(w, http.StatusBadRequest, fmt.Sprintf(invalidHashError, path))
 			return
