@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,6 +13,7 @@ import (
 	"text/template"
 	"time"
 
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"

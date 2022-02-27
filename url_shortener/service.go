@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"hash/fnv"
 	"net/http"
 	"os"
@@ -14,6 +13,7 @@ import (
 	"text/template"
 	"time"
 
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
