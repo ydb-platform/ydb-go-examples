@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"regexp"
-	"strings"
 	"text/template"
 	"time"
 
@@ -34,6 +33,7 @@ var (
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+	<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"> 
     <title>URL shortener</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <script src="http://code.jquery.com/jquery-3.5.0.min.js" integrity="sha256-xNzN2a4ltkB44Mc/Jz3pT4iU1cmeR0FkXs4pru/JxaQ=" crossorigin="anonymous"></script>
@@ -73,12 +73,12 @@ var (
             e.preventDefault();
 
             $.ajax({
-                url: 'url?url=' + $source.val(),
+                url: '?url=' + encodeURIComponent($source.val()),
                 contentType: "application/text; charset=utf-8",
                 traditional: true,
-                success: function(data) {
-                    $shorten.html(data);
-					$shorten.attr('href', data);
+                success: function(hash) {
+                    $shorten.html(window.location.protocol + '//' + window.location.host + window.location.pathname + '?' + hash);
+					$shorten.attr('href', window.location.protocol + '//' + window.location.host + window.location.pathname + '?' + hash);
                 },
                 error: function(data) {
                     $shorten.html('invalid url')
@@ -284,11 +284,10 @@ func writeResponse(w http.ResponseWriter, statusCode int, body string) {
 }
 
 func (s *service) Router(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimLeft(r.URL.Path, "/")
 	switch {
-	case path == "":
+	case len(r.URL.Query()) == 0:
 		http.ServeContent(w, r, "", time.Now(), bytes.NewReader([]byte(indexPageContent)))
-	case path == "url":
+	case len(r.URL.Query().Get("url")) > 0:
 		url := r.URL.Query().Get("url")
 		if !isLongCorrect(url) {
 			writeResponse(w, http.StatusBadRequest, fmt.Sprintf(invalidURLError, url))
@@ -300,12 +299,9 @@ func (s *service) Router(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/text")
-		protocol := "https://"
-		if r.TLS == nil {
-			protocol = "http://"
-		}
-		writeResponse(w, http.StatusOK, protocol+r.Host+"/"+hash)
+		writeResponse(w, http.StatusOK, hash)
 	default:
+		path := r.URL.RawQuery
 		if !isShortCorrect(path) {
 			writeResponse(w, http.StatusBadRequest, fmt.Sprintf(invalidHashError, path))
 			return
