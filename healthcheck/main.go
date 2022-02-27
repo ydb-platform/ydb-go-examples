@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
@@ -104,20 +103,4 @@ func main() {
 			return
 		}
 	}
-}
-
-// Serverless is an entrypoint for serverless yandex function
-// nolint:deadcode
-func Serverless(ctx context.Context) error {
-	s, err := newService(
-		ctx,
-		ydb.WithConnectionString(os.Getenv("YDB")),
-		environ.WithEnvironCredentials(ctx),
-		ydb.WithDialTimeout(time.Second),
-	)
-	if err != nil {
-		return fmt.Errorf("error on create service: %w", err)
-	}
-	defer s.Close(ctx)
-	return s.check(ctx, strings.Split(os.Getenv("URLS"), ","))
 }

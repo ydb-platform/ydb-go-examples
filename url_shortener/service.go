@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"hash/fnv"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"text/template"
@@ -315,4 +317,20 @@ func (s *service) Router(w http.ResponseWriter, r *http.Request) {
 		}
 		http.Redirect(w, r, url, http.StatusSeeOther)
 	}
+}
+
+// Serverless is an entrypoint for serverless yandex function
+// nolint:deadcode
+func Serverless(w http.ResponseWriter, r *http.Request) {
+	s, err := newService(
+		r.Context(),
+		ydb.WithConnectionString(os.Getenv("YDB")),
+		environ.WithEnvironCredentials(r.Context()),
+	)
+	if err != nil {
+		writeResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer s.Close(r.Context())
+	s.Router(w, r)
 }

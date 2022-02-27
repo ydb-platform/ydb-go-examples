@@ -15,7 +15,6 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 
-	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	ydbMetrics "github.com/ydb-platform/ydb-go-sdk-prometheus"
 	ydbZerolog "github.com/ydb-platform/ydb-go-sdk-zerolog"
 )
@@ -134,20 +133,4 @@ func main() {
 	case <-done:
 		return
 	}
-}
-
-// Serverless is an entrypoint for serverless yandex function
-// nolint:deadcode
-func Serverless(w http.ResponseWriter, r *http.Request) {
-	s, err := newService(
-		r.Context(),
-		ydb.WithConnectionString(os.Getenv("YDB")),
-		environ.WithEnvironCredentials(r.Context()),
-	)
-	if err != nil {
-		writeResponse(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	defer s.Close(r.Context())
-	s.Router(w, r)
 }

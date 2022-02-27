@@ -20,15 +20,15 @@ healthcheck \
 Yandex function needs a go module project. First you must create go.mod file.
 ```bash
 go mod init example && go mod tidy
-zip archive.zip service.go main.go go.mod go.sum
+zip archive.zip service.go go.mod go.sum
 yc sls fn version create \
    --service-account-id=aje46n285h0re8nmm5u6 \
    --runtime=golang116 \
    --entrypoint=main.Serverless \
    --memory=128m \
    --execution-timeout=1s \
-   --environment YDB=grpcs://types.serverless.yandexcloud.net:2135/?database=/ru-central1/b1g8skpblkos03malf3s/etn01f8gv9an9sedo9fu \
-   --environment URLS=ya.ru,google.com,rambler.ru \
+   --environment YDB="grpcs://ydb.serverless.yandexcloud.net:2135/?database=/ru-central1/b1g8skpblkos03malf3s/etnpa7o3qltdfgu9vsap" \
+   --environment URLS="https://ya.ru,https://google.com,https://rambler.ru" \
    --source-path=./archive.zip \
    --function-id=d4empp866m0b4m2gspu9
 ```

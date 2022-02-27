@@ -5,8 +5,10 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"text/template"
@@ -200,4 +202,20 @@ func (s *service) saveCodes(ctx context.Context, codes *sync.Map) (err error) {
 		return nil
 	}
 	return fmt.Errorf("errors: [%s]", strings.Join(ee, ","))
+}
+
+// Serverless is an entrypoint for serverless yandex function
+// nolint:deadcode
+func Serverless(ctx context.Context) error {
+	s, err := newService(
+		ctx,
+		ydb.WithConnectionString(os.Getenv("YDB")),
+		environ.WithEnvironCredentials(ctx),
+		ydb.WithDialTimeout(time.Second),
+	)
+	if err != nil {
+		return fmt.Errorf("error on create service: %w", err)
+	}
+	defer s.Close(ctx)
+	return s.check(ctx, strings.Split(os.Getenv("URLS"), ","))
 }
