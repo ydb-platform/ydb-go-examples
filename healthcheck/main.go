@@ -8,7 +8,6 @@ import (
 	"time"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 )
 
 var (
@@ -82,7 +81,7 @@ func main() {
 	defer cancel()
 	s, err := newService(
 		ctx,
-		ydb.WithConnectionString(dsn),
+		dsn,
 		environ.WithEnvironCredentials(ctx),
 	)
 	if err != nil {

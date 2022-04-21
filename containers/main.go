@@ -54,9 +54,9 @@ func init() {
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	db, err := ydb.New(
+	db, err := ydb.Open(
 		ctx,
-		ydb.WithConnectionString(dsn),
+		dsn,
 		environ.WithEnvironCredentials(ctx),
 	)
 	if err != nil {
@@ -74,9 +74,6 @@ func main() {
 			defer func() {
 				_ = res.Close()
 			}()
-			if err != nil {
-				return err
-			}
 
 			parsers := [...]func() error{
 				func() error {

@@ -62,13 +62,13 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	opts := []ydb.Option{
-		ydb.WithConnectionString(dsn),
+		dsn,
 		environ.WithEnvironCredentials(ctx),
 	}
 	if dialTimeout > 0 {
 		opts = append(opts, ydb.WithDialTimeout(dialTimeout))
 	}
-	db, err := ydb.New(
+	db, err := ydb.Open(
 		ctx,
 		opts...,
 	)

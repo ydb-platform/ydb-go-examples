@@ -48,9 +48,9 @@ func init() {
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	db, err := ydb.New(
+	db, err := ydb.Open(
 		ctx,
-		ydb.WithConnectionString(dsn),
+		dsn,
 		yc.WithMetadataCredentials(ctx),
 		yc.WithInternalCA(), // append Yandex Cloud certificates
 	)

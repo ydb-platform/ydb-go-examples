@@ -4,27 +4,24 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/ydb-platform/ydb-go-sdk/v3/balancers"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
-
-	ydbMetrics "github.com/ydb-platform/ydb-go-sdk-prometheus"
-	ydbZerolog "github.com/ydb-platform/ydb-go-sdk-zerolog"
 )
 
 var (
-	dsn           string
-	prefix        string
-	port          int
-	shutdownAfter time.Duration
-	logLevel      string
+	dsn              string
+	prefix           string
+	port             int
+	sessionPoolLimit int
+	shutdownAfter    time.Duration
+	logLevel         string
 
 	log = zerolog.New(os.Stdout).With().Timestamp().Logger()
 )
@@ -53,6 +50,10 @@ func init() {
 	flagSet.IntVar(&port,
 		"port", 80,
 		"http port for web-server",
+	)
+	flagSet.IntVar(&sessionPoolLimit,
+		"session-pool-limit", 50,
+		"session pool size limit",
 	)
 	flagSet.DurationVar(&shutdownAfter,
 		"shutdown-after", -1,
@@ -96,27 +97,28 @@ func main() {
 
 	s, err := newService(
 		ctx,
-		ydb.WithConnectionString(dsn),
-		ydbMetrics.WithTraces(
-			prometheus.NewRegistry(),
-			ydbMetrics.WithSeparator("_"),
-			ydbMetrics.WithDetails(
-				trace.DetailsAll,
+		dsn,
+		ydb.WithSessionPoolSizeLimit(sessionPoolLimit),
+		ydb.WithSessionPoolKeepAliveTimeout(5*time.Second),
+		ydb.WithBalancer(
+			balancers.Prefer(
+				balancers.RandomChoice(),
+				func(endpoint balancers.Endpoint) bool {
+					return endpoint.Address() == "kikimr0425.search.yandex.net:31051" || endpoint.Address() == "kikimr0447.search.yandex.net:31051"
+				},
 			),
-		),
-		ydbZerolog.WithTraces(
-			&log,
-			trace.DetailsAll,
 		),
 	)
 	if err != nil {
-		panic(fmt.Errorf("error on create service: %w", err))
+		fmt.Println()
+		fmt.Println("Create service failed. Re-run with flag '-log-level=warn' and see logs")
+		os.Exit(1)
 	}
 	defer s.Close(ctx)
 
 	server := &http.Server{
 		Addr:    ":" + strconv.Itoa(port),
-		Handler: http.HandlerFunc(s.Router),
+		Handler: s.router,
 	}
 	defer func() {
 		_ = server.Shutdown(ctx)

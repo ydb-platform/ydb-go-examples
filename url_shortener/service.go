@@ -3,9 +3,14 @@ package main
 import (
 	"bytes"
 	"context"
+	"embed"
 	"encoding/hex"
 	"fmt"
+	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"hash/fnv"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"regexp"
@@ -14,12 +19,15 @@ import (
 	"time"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
+	ydbMetrics "github.com/ydb-platform/ydb-go-sdk-prometheus"
+	ydbZerolog "github.com/ydb-platform/ydb-go-sdk-zerolog"
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/options"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/result"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/result/named"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
 const (
@@ -29,71 +37,12 @@ const (
 )
 
 var (
-	indexPageContent = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-	<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests"> 
-    <title>URL shortener</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-    <script src="http://code.jquery.com/jquery-3.5.0.min.js" integrity="sha256-xNzN2a4ltkB44Mc/Jz3pT4iU1cmeR0FkXs4pru/JxaQ=" crossorigin="anonymous"></script>
-    <style>
-        body {
-            margin-top: 30px;
-        }
-        .shorten {
-            color: blue;
-        }
-    </style>
-</head>
-<body>
+	//go:embed static/index.html
+	static embed.FS
+)
 
-<div class="container">
-    <div class="row-12">
-        <form id="source-url-form">
-            <div class="form-row">
-                <div class="col-12">
-                    <input id="source" type="text" class="form-control" placeholder="https://">
-                </div>
-            </div>
-        </form>
-    </div>
-    <div class="row-12">
-        <a id="shorten" class="shorten" href=""/>
-    </div>
-</div>
-
-<script>
-    $(function() {
-        let $form = $("#source-url-form");
-        let $source = $("#source");
-        let $shorten = $("#shorten");
-
-        $form.submit(function(e) {
-            e.preventDefault();
-
-            $.ajax({
-                url: '?url=' + encodeURIComponent($source.val()),
-                contentType: "application/text; charset=utf-8",
-                traditional: true,
-                success: function(hash) {
-                    $shorten.html(window.location.protocol + '//' + window.location.host + window.location.pathname + '?' + hash);
-					$shorten.attr('href', window.location.protocol + '//' + window.location.host + window.location.pathname + '?' + hash);
-                },
-                error: function(data) {
-                    $shorten.html('invalid url')
-					$shorten.attr('href', '');
-                }
-            });
-        });
-    });
-</script>
-
-</body>
-</html>`
-
-	short = regexp.MustCompile(`[a-zA-Z0-9]`)
+var (
+	short = regexp.MustCompile(`[a-zA-Z0-9]{8}`)
 	long  = regexp.MustCompile(`https?://(?:[-\w.]|%[\da-fA-F]{2})+`)
 )
 
@@ -130,22 +79,98 @@ type templateConfig struct {
 type service struct {
 	database string
 	db       ydb.Connection
+	registry *prometheus.Registry
+	router   *mux.Router
+
+	calls        *prometheus.GaugeVec
+	callsLatency *prometheus.HistogramVec
+	callsErrors  *prometheus.GaugeVec
 }
 
-func newService(ctx context.Context, opts ...ydb.Option) (s *service, err error) {
-	db, err := ydb.New(ctx, opts...)
+func newService(ctx context.Context, dsn string, opts ...ydb.Option) (s *service, err error) {
+	var (
+		registry = prometheus.NewRegistry()
+		calls    = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: "app",
+			Name:      "calls",
+		}, []string{
+			"method",
+			"success",
+		})
+		callsLatency = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace: "app",
+			Name:      "latency",
+			Buckets: []float64{
+				(1 * time.Millisecond).Seconds(),
+				(5 * time.Millisecond).Seconds(),
+				(10 * time.Millisecond).Seconds(),
+				(50 * time.Millisecond).Seconds(),
+				(100 * time.Millisecond).Seconds(),
+				(500 * time.Millisecond).Seconds(),
+				(1000 * time.Millisecond).Seconds(),
+				(5000 * time.Millisecond).Seconds(),
+				(10000 * time.Millisecond).Seconds(),
+			},
+		}, []string{
+			"success",
+			"method",
+		})
+		callsErrors = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: "app",
+			Name:      "errors",
+		}, []string{
+			"method",
+		})
+	)
+
+	registry.MustRegister(calls)
+	registry.MustRegister(callsLatency)
+	registry.MustRegister(callsErrors)
+
+	opts = append(
+		opts,
+		ydbMetrics.WithTraces(
+			registry,
+			ydbMetrics.WithSeparator("_"),
+			ydbMetrics.WithDetails(
+				trace.DetailsAll,
+			),
+		),
+		ydbZerolog.WithTraces(
+			&log,
+			trace.DetailsAll,
+		),
+	)
+
+	db, err := ydb.Open(ctx, dsn, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("connect error: %w", err)
 	}
+
 	s = &service{
 		database: db.Name(),
 		db:       db,
+		registry: registry,
+		router:   mux.NewRouter(),
+
+		calls:        calls,
+		callsLatency: callsLatency,
+		callsErrors:  callsErrors,
 	}
+
+	s.router.Handle("/metrics", promhttp.InstrumentMetricHandler(
+		registry, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
+	))
+	s.router.HandleFunc("/", s.handleIndex).Methods(http.MethodGet)
+	s.router.HandleFunc("/shorten", s.handleShorten).Methods(http.MethodPost)
+	s.router.HandleFunc("/{[0-9a-fA-F]{8}}", s.handleLonger).Methods(http.MethodGet)
+
 	err = s.createTable(ctx)
 	if err != nil {
 		_ = db.Close(ctx)
 		return nil, fmt.Errorf("error on create table: %w", err)
 	}
+
 	return s, nil
 }
 
@@ -258,7 +283,7 @@ func (s *service) selectLong(ctx context.Context, hash string) (url string, err 
 				),
 				options.WithCollectStatsModeBasic(),
 			)
-			return
+			return err
 		},
 	)
 	if err != nil {
@@ -284,36 +309,124 @@ func writeResponse(w http.ResponseWriter, statusCode int, body string) {
 	_, _ = w.Write([]byte(body))
 }
 
-func (s *service) Router(w http.ResponseWriter, r *http.Request) {
-	switch {
-	case len(r.URL.Query()) == 0:
-		http.ServeContent(w, r, "", time.Now(), bytes.NewReader([]byte(indexPageContent)))
-	case len(r.URL.Query().Get("url")) > 0:
-		url := r.URL.Query().Get("url")
-		if !isLongCorrect(url) {
-			writeResponse(w, http.StatusBadRequest, fmt.Sprintf(invalidURLError, url))
-			return
-		}
-		hash, err := s.insertShort(r.Context(), url)
-		if err != nil {
-			writeResponse(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		w.Header().Set("Content-Type", "application/text")
-		writeResponse(w, http.StatusOK, hash)
-	default:
-		path := strings.TrimRight(r.URL.RawQuery, "=")
-		if !isShortCorrect(path) {
-			writeResponse(w, http.StatusBadRequest, fmt.Sprintf(invalidHashError, path))
-			return
-		}
-		url, err := s.selectLong(r.Context(), path)
-		if err != nil {
-			writeResponse(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		http.Redirect(w, r, url, http.StatusSeeOther)
+func successToString(b bool) string {
+	if b {
+		return "true"
 	}
+	return "false"
+}
+
+func (s *service) handleIndex(w http.ResponseWriter, r *http.Request) {
+	var (
+		err   error
+		tpl   *template.Template
+		start = time.Now()
+	)
+	defer func() {
+		if err != nil {
+			s.callsErrors.With(prometheus.Labels{
+				"method": "index",
+			}).Add(1)
+		}
+		s.callsLatency.With(prometheus.Labels{
+			"method":  "index",
+			"success": successToString(err == nil),
+		}).Observe(time.Since(start).Seconds())
+		s.calls.With(prometheus.Labels{
+			"method":  "index",
+			"success": successToString(err == nil),
+		}).Add(1)
+	}()
+	tpl, err = template.ParseFS(static, "static/index.html")
+	if err != nil {
+		writeResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	data := map[string]interface{}{
+		"userAgent": r.UserAgent(),
+	}
+	if err = tpl.Execute(w, data); err != nil {
+		writeResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+}
+
+func (s *service) handleShorten(w http.ResponseWriter, r *http.Request) {
+	var (
+		err   error
+		url   []byte
+		hash  string
+		start = time.Now()
+	)
+	defer func() {
+		if err != nil {
+			s.callsErrors.With(prometheus.Labels{
+				"method": "shorten",
+			}).Add(1)
+		}
+		s.callsLatency.With(prometheus.Labels{
+			"method":  "shorten",
+			"success": successToString(err == nil),
+		}).Observe(time.Since(start).Seconds())
+		s.calls.With(prometheus.Labels{
+			"method":  "index",
+			"success": successToString(err == nil),
+		}).Add(1)
+	}()
+	url, err = ioutil.ReadAll(r.Body)
+	if err != nil {
+		writeResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if !isLongCorrect(string(url)) {
+		err = fmt.Errorf(fmt.Sprintf(invalidURLError, url))
+		writeResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	hash, err = s.insertShort(r.Context(), string(url))
+	if err != nil {
+		writeResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "application/text")
+	writeResponse(w, http.StatusOK, hash)
+}
+
+func (s *service) handleLonger(w http.ResponseWriter, r *http.Request) {
+	var (
+		err   error
+		url   string
+		start = time.Now()
+	)
+	defer func() {
+		if err != nil {
+			s.callsErrors.With(prometheus.Labels{
+				"method": "longer",
+			}).Add(1)
+		}
+		s.callsLatency.With(prometheus.Labels{
+			"method":  "longer",
+			"success": successToString(err == nil),
+		}).Observe(time.Since(start).Seconds())
+		s.calls.With(prometheus.Labels{
+			"method":  "index",
+			"success": successToString(err == nil),
+		}).Add(1)
+	}()
+	path := strings.Split(r.URL.Path, "/")
+	if !isShortCorrect(path[len(path)-1]) {
+		err = fmt.Errorf(fmt.Sprintf(invalidHashError, path[len(path)-1]))
+		writeResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	url, err = s.selectLong(r.Context(), path[len(path)-1])
+	if err != nil {
+		writeResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
 // Serverless is an entrypoint for serverless yandex function
@@ -321,7 +434,7 @@ func (s *service) Router(w http.ResponseWriter, r *http.Request) {
 func Serverless(w http.ResponseWriter, r *http.Request) {
 	s, err := newService(
 		r.Context(),
-		ydb.WithConnectionString(os.Getenv("YDB")),
+		os.Getenv("YDB"),
 		environ.WithEnvironCredentials(r.Context()),
 	)
 	if err != nil {
@@ -329,5 +442,5 @@ func Serverless(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer s.Close(r.Context())
-	s.Router(w, r)
+	s.router.ServeHTTP(w, r)
 }

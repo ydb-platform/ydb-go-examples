@@ -43,8 +43,8 @@ type service struct {
 	client   *http.Client
 }
 
-func newService(ctx context.Context, opts ...ydb.Option) (h *service, err error) {
-	db, err := ydb.New(ctx, opts...)
+func newService(ctx context.Context, dsn string, opts ...ydb.Option) (h *service, err error) {
+	db, err := ydb.Open(ctx, dsn, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("connect error: %w", err)
 	}
@@ -209,7 +209,7 @@ func (s *service) saveCodes(ctx context.Context, codes *sync.Map) (err error) {
 func Serverless(ctx context.Context) error {
 	s, err := newService(
 		ctx,
-		ydb.WithConnectionString(os.Getenv("YDB")),
+		os.Getenv("YDB"),
 		environ.WithEnvironCredentials(ctx),
 		ydb.WithDialTimeout(time.Second),
 	)
