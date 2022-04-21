@@ -15,9 +15,3 @@ require (
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.21.0
 	github.com/ydb-platform/ydb-go-yc v0.8.2
 )
-
-replace (
-	github.com/ydb-platform/ydb-go-sdk-metrics => ../ydb-go-sdk-metrics
-	github.com/ydb-platform/ydb-go-sdk-zerolog => ../ydb-go-sdk-zerolog
-	github.com/ydb-platform/ydb-go-sdk/v3 => ../ydb-go-sdk-private
-)
