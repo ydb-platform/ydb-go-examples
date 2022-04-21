@@ -62,7 +62,6 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	opts := []ydb.Option{
-		dsn,
 		environ.WithEnvironCredentials(ctx),
 	}
 	if dialTimeout > 0 {
@@ -70,6 +69,7 @@ func main() {
 	}
 	db, err := ydb.Open(
 		ctx,
+		dsn,
 		opts...,
 	)
 	if err != nil {
