@@ -11,8 +11,7 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/balancers"
+	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 )
 
 var (
@@ -98,16 +97,7 @@ func main() {
 	s, err := newService(
 		ctx,
 		dsn,
-		ydb.WithSessionPoolSizeLimit(sessionPoolLimit),
-		ydb.WithSessionPoolKeepAliveTimeout(5*time.Second),
-		ydb.WithBalancer(
-			balancers.Prefer(
-				balancers.RandomChoice(),
-				func(endpoint balancers.Endpoint) bool {
-					return endpoint.Address() == "kikimr0425.search.yandex.net:31051" || endpoint.Address() == "kikimr0447.search.yandex.net:31051"
-				},
-			),
-		),
+		environ.WithEnvironCredentials(ctx),
 	)
 	if err != nil {
 		fmt.Println()
