@@ -221,6 +221,8 @@ github.com/ydb-platform/ydb-go-genproto v0.0.0-20220203104745-929cf9c248bc h1:xv
 github.com/ydb-platform/ydb-go-genproto v0.0.0-20220203104745-929cf9c248bc/go.mod h1:cc138nptTn9eKptCQl/grxP6pBKpo/bnXDiOxuVZtps=
 github.com/ydb-platform/ydb-go-sdk-auth-environ v0.1.0 h1:74zGbvLn5kwLkkVoicJWzmvWhaIGdIWLUr1tfaMul08=
 github.com/ydb-platform/ydb-go-sdk-auth-environ v0.1.0/go.mod h1:9E5eeVy08G/cu5azQVYGHduqxa6hz/dyZzJDjDTE010=
+github.com/ydb-platform/ydb-go-sdk-auth-environ v0.1.1 h1:9Eoe1hMpkwj4xP1nSDkPimLWjVZxzlRoLao290l9VMQ=
+github.com/ydb-platform/ydb-go-sdk-auth-environ v0.1.1/go.mod h1:X3RkQ0HJjXxO8rlkd7i12XgIhxgqfcad/TRO3MnBQyQ=
 github.com/ydb-platform/ydb-go-sdk-metrics v0.13.2 h1:3hZlLfSDXazKTcA1GL2oewfQQfUmx1bVoQrbrezKMI8=
 github.com/ydb-platform/ydb-go-sdk-metrics v0.13.2/go.mod h1:5rtAuFK5PcEoA7Vg800KvO+Pswh/qNC5bbKrhPbOmt4=
 github.com/ydb-platform/ydb-go-sdk-prometheus v0.10.1 h1:P3HYssGrUSe1ji1D0909xrcqymbkFsqHVgTgxwyhSRI=
@@ -230,12 +232,17 @@ github.com/ydb-platform/ydb-go-sdk-zerolog v0.9.1/go.mod h1:53lxw2XMyUQg9NxplYCl
 github.com/ydb-platform/ydb-go-sdk/v3 v3.9.0/go.mod h1:/KCidORSzHOsn+j46Iqb8Tf6UXNhPWRMcrMieh+i9Xw=
 github.com/ydb-platform/ydb-go-sdk/v3 v3.21.0 h1:S7ifqBAKO0TOmfcvRxHEl4xcGxyE+0D6nujOHIwCUR8=
 github.com/ydb-platform/ydb-go-sdk/v3 v3.21.0/go.mod h1:/KCidORSzHOsn+j46Iqb8Tf6UXNhPWRMcrMieh+i9Xw=
+github.com/ydb-platform/ydb-go-sdk/v3 v3.24.0/go.mod h1:/KCidORSzHOsn+j46Iqb8Tf6UXNhPWRMcrMieh+i9Xw=
+github.com/ydb-platform/ydb-go-sdk/v3 v3.25.1 h1:nDAg1/ZniSUZHzgXioH97d3QIJcYaqkBiW+3qxmMwOM=
+github.com/ydb-platform/ydb-go-sdk/v3 v3.25.1/go.mod h1:PFizF/vJsdAgEwjK3DVSBD52kdmRkWfSIS2q2pA+e88=
 github.com/ydb-platform/ydb-go-yc v0.6.1/go.mod h1:iMalotfQEHibqPDNkwn0oT2UC5ieS5j6teIuGgPzaSE=
 github.com/ydb-platform/ydb-go-yc v0.8.2 h1:AwpqPMD17tcbUxkCAMmDUu8GIItlL2kxmplPBk8Dwxw=
 github.com/ydb-platform/ydb-go-yc v0.8.2/go.mod h1:Z83mMTH8qakLit+1iaDKziF6+SDI9eDD/8+D1K6Cn8M=
 github.com/ydb-platform/ydb-go-yc-metadata v0.0.9/go.mod h1:L7zqxXrf3DXY2CWd9T9JBiPVpdooGBxJr4CPtWiMLCg=
 github.com/ydb-platform/ydb-go-yc-metadata v0.3.2 h1:1LHgX3xAdK+ie3WUDNMaDQVWSnmykPnAV3kUvz0O4Ko=
 github.com/ydb-platform/ydb-go-yc-metadata v0.3.2/go.mod h1:uIUhZOwAqNIvnoedSau8oOyeu398UAxNx1Z7VLBlGdk=
+github.com/ydb-platform/ydb-go-yc-metadata v0.5.0 h1:rhWt6zbnI/4T98NmLTUOS0Fa/V72M7I3FgEod/UM8f0=
+github.com/ydb-platform/ydb-go-yc-metadata v0.5.0/go.mod h1:s18RF6Ol0Q1NBKPK2vSZsmUloUZE0tBImJgR36T2Dos=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

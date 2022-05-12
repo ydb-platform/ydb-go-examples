@@ -279,9 +279,6 @@ func (s *service) selectLong(ctx context.Context, hash string) (url string, err 
 				table.NewQueryParameters(
 					table.ValueParam("$hash", types.UTF8Value(hash)),
 				),
-				options.WithQueryCachePolicy(
-					options.WithQueryCachePolicyKeepInCache(),
-				),
 				options.WithCollectStatsModeBasic(),
 			)
 			return err

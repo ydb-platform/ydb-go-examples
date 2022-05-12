@@ -51,7 +51,7 @@ func main() {
 	db, err := ydb.Open(
 		ctx,
 		dsn,
-		yc.WithMetadataCredentials(ctx),
+		yc.WithMetadataCredentials(),
 		yc.WithInternalCA(), // append Yandex Cloud certificates
 	)
 	if err != nil {

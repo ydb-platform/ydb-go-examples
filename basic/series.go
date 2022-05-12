@@ -208,9 +208,6 @@ func selectSimple(ctx context.Context, c table.Client, prefix string) (err error
 				table.NewQueryParameters(
 					table.ValueParam("$seriesID", types.Uint64Value(1)),
 				),
-				options.WithQueryCachePolicy(
-					options.WithQueryCachePolicyKeepInCache(),
-				),
 				options.WithCollectStatsModeBasic(),
 			)
 			return

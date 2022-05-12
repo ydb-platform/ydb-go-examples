@@ -59,8 +59,7 @@ func deleteExpiredDocuments(ctx context.Context, c table.Client, prefix string, 
 					table.ValueParam("$keys", keys),
 					table.ValueParam("$timestamp", types.Uint64Value(timestamp)),
 				),
-				options.WithQueryCachePolicy(
-					options.WithQueryCachePolicyKeepInCache()))
+			)
 			return err
 		},
 	)
@@ -179,9 +178,6 @@ func readDocument(ctx context.Context, c table.Client, prefix, url string) error
 		func(ctx context.Context, s table.Session) (err error) {
 			_, res, err = s.Execute(ctx, readTx, query, table.NewQueryParameters(
 				table.ValueParam("$url", types.UTF8Value(url))),
-				options.WithQueryCachePolicy(
-					options.WithQueryCachePolicyKeepInCache(),
-				),
 			)
 			return err
 		},
@@ -245,8 +241,7 @@ func addDocument(ctx context.Context, c table.Client, prefix, url, html string, 
 				table.ValueParam("$url", types.UTF8Value(url)),
 				table.ValueParam("$html", types.UTF8Value(html)),
 				table.ValueParam("$timestamp", types.Uint64Value(timestamp))),
-				options.WithQueryCachePolicy(
-					options.WithQueryCachePolicyKeepInCache()))
+			)
 			return err
 		},
 	)
