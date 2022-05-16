@@ -91,20 +91,6 @@ func main() {
 	err = db.Table().Do(
 		ctx,
 		func(ctx context.Context, s table.Session) (err error) {
-			write, err := s.Prepare(ctx, render(writeQuery, templateConfig{
-				TablePathPrefix: prefix,
-			}))
-			if err != nil {
-				return err
-			}
-
-			read, err := s.Prepare(ctx, render(readQuery, templateConfig{
-				TablePathPrefix: prefix,
-			}))
-			if err != nil {
-				return err
-			}
-
 			txc := table.TxControl(
 				table.BeginTx(
 					table.WithSerializableReadWrite(),
@@ -115,7 +101,9 @@ func main() {
 			x := big.NewInt(42 * 1000000000)
 			x.Mul(x, big.NewInt(2))
 
-			_, _, err = write.Execute(ctx, txc, table.NewQueryParameters(
+			_, _, err = s.Execute(ctx, txc, render(writeQuery, templateConfig{
+				TablePathPrefix: prefix,
+			}), table.NewQueryParameters(
 				table.ValueParam("$decimals",
 					types.ListValue(
 						types.StructValue(
@@ -129,7 +117,9 @@ func main() {
 				return err
 			}
 
-			_, res, err := read.Execute(ctx, txc, nil)
+			_, res, err := s.Execute(ctx, txc, render(readQuery, templateConfig{
+				TablePathPrefix: prefix,
+			}), nil)
 			if err != nil {
 				return err
 			}

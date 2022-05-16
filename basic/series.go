@@ -307,7 +307,6 @@ func scanQuerySelect(ctx context.Context, c table.Client, prefix string) (err er
 }
 
 func fillTablesWithData(ctx context.Context, c table.Client, prefix string) (err error) {
-	// Prepare write transaction.
 	writeTx := table.TxControl(
 		table.BeginTx(
 			table.WithSerializableReadWrite(),
@@ -317,13 +316,9 @@ func fillTablesWithData(ctx context.Context, c table.Client, prefix string) (err
 	err = c.Do(
 		ctx,
 		func(ctx context.Context, s table.Session) (err error) {
-			stmt, err := s.Prepare(ctx, render(fill, templateConfig{
+			_, _, err = s.Execute(ctx, writeTx, render(fill, templateConfig{
 				TablePathPrefix: prefix,
-			}))
-			if err != nil {
-				return err
-			}
-			_, _, err = stmt.Execute(ctx, writeTx, table.NewQueryParameters(
+			}), table.NewQueryParameters(
 				table.ValueParam("$seriesData", getSeriesData()),
 				table.ValueParam("$seasonsData", getSeasonsData()),
 				table.ValueParam("$episodesData", getEpisodesData()),

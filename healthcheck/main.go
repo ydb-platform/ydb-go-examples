@@ -55,8 +55,8 @@ func init() {
 		"url for health check",
 	)
 	flagSet.IntVar(&count,
-		"count", -1,
-		"count of needed checks (one check per minute, -1 - for busy loop)",
+		"count", 0,
+		"count of needed checks (one check per minute, -1 for busy loop, 0 for single shot)",
 	)
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		flagSet.Usage()
@@ -88,11 +88,12 @@ func main() {
 		panic(fmt.Errorf("error on create service: %w", err))
 	}
 	defer s.Close(ctx)
-	for i := 0; i < count || count < 0; i++ {
+	for i := 0; ; i++ {
 		if err := s.check(ctx, urls.urls); err != nil {
 			panic(fmt.Errorf("error on check URLS %v: %w", urls, err))
 		}
-		if i == count {
+		fmt.Printf("i=%d, count=%d\n", i, count)
+		if count >= 0 && i == count {
 			return
 		}
 		select {
