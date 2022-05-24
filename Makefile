@@ -38,3 +38,6 @@ ttl_readtable:
 
 url_shortener:
 	go run ./url_shortener -ydb=${YDB_CONNECTION_STRING} -prefix=url_shortener
+
+describe:
+	go run ./describe -ydb=${YDB_CONNECTION_STRING} -prefix=/ -t="Optional<Interval>" -t="Interval"
