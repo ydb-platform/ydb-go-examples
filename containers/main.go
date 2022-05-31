@@ -7,6 +7,7 @@ import (
 	"os"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
+
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 )
@@ -104,11 +105,7 @@ func main() {
 				}
 			}
 			return res.Err()
-		},
-		table.WithTxSettings(table.TxSettings(
-			table.WithSerializableReadWrite(),
-		)),
-	)
+		})
 	if err != nil {
 		panic(err)
 	}
