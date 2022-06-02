@@ -104,8 +104,7 @@ func main() {
 				}
 			}
 			return res.Err()
-		},
-	)
+		})
 	if err != nil {
 		panic(err)
 	}
