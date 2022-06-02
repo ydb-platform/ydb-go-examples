@@ -105,9 +105,6 @@ func main() {
 			}
 			return res.Err()
 		},
-		table.WithTxSettings(table.TxSettings(
-			table.WithSerializableReadWrite(),
-		)),
 	)
 	if err != nil {
 		panic(err)
