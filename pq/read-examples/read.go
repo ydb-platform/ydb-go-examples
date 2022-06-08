@@ -6,8 +6,35 @@ import (
 	"io"
 	"time"
 
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/pq"
 )
+
+func CreateReader() *pq.Reader {
+	ctx := context.Background()
+	db, _ := ydb.Open(
+		ctx, "grpc://localhost:2136?database=/local",
+		ydb.WithAccessTokenCredentials("..."),
+	)
+
+	r := db.Persqueue().Reader(ctx,
+		// The context will use as base to create PartitionSession context
+		// Similar to http.Server.BaseContext
+		// optional, if skip - context.Background will use as base
+		pq.WithBaseContext(ctx),
+		pq.WithReadSelector(pq.ReadSelector{
+			Stream:             "test",
+			Partitions:         nil, // по умолчанию - все
+			SkipMessagesBefore: time.Time{},
+		}),
+		pq.WithReadSelector(pq.ReadSelector{
+			Stream:             "test-2",
+			Partitions:         nil, // по умолчанию - все
+			SkipMessagesBefore: time.Time{},
+		}),
+	)
+	return r
+}
 
 func SimpleReadMessages(r *pq.Reader) {
 	for {
