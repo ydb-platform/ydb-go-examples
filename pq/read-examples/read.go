@@ -17,7 +17,7 @@ func CreateReader() *pq.Reader {
 		ydb.WithAccessTokenCredentials("..."),
 	)
 
-	r := db.Persqueue().Reader(ctx,
+	r := db.Persqueue().Reader(context.TODO(),
 		// The context will use as base to create PartitionSession context
 		// Similar to http.Server.BaseContext
 		// optional, if skip - context.Background will use as base
@@ -29,7 +29,7 @@ func CreateReader() *pq.Reader {
 		}),
 		pq.WithReadSelector(pq.ReadSelector{
 			Stream:             "test-2",
-			Partitions:         nil, // по умолчанию - все
+			Partitions:         []int64{1, 2, 3},
 			SkipMessagesBefore: time.Time{},
 		}),
 	)
@@ -88,8 +88,33 @@ func ReadBatchWithMessageCommits(r *pq.Reader) {
 	}
 }
 
-func ReadWithGracefulShudownSession(r *pq.Reader) {
+func ReadWithGracefulShudownSession(db ydb.Connection) {
+	r := db.Persqueue().Reader(context.TODO()) // WithOnSessionStart (callback)?
+
 	sessions := map[*pq.PartitionSession][]pq.Message{}
+
+	r.PartitionControler().OnSessionStart(func(info *pq.StartPartitionSessionRequest, response *pq.StartPartitionSessionResponse) error {
+		session := info.Session
+
+		go func() {
+			select {
+			case <-session.GracefulContext().Done():
+				messages := sessions[session]
+				processPartitionedMessages(session.Context(), messages)
+				_ = r.CommitBatch(context.TODO(), pq.CommitBatchFromMessages(messages...))
+			case <-session.Context().Done():
+				return
+			}
+		}()
+
+		return nil
+	})
+
+	r.PartitionControler().OnSessionShutdown(func(info *pq.StopPartitionSessionRequest, response *pq.StopPartitionSessionResponse) error {
+		// Нужно ли?
+
+		return nil
+	})
 
 	ensureSession := func(session *pq.PartitionSession) *pq.PartitionSession {
 		if _, ok := sessions[session]; ok {
