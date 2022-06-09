@@ -47,25 +47,25 @@ func ReadWithCommitEveryMessage(r *pq.Reader) {
 	for {
 		mess, _ := r.ReadMessage(context.TODO())
 		processMessage(mess)
-		_ = r.Commit(context.TODO(), mess.GetCommitOffset())
+		_ = r.CommitMessage(context.TODO(), mess)
 	}
 }
 
 func ReadMessageWithBatchCommit(r *pq.Reader) {
-	var commits pq.CommitBatch
+	var processedMessages []pq.Message
 	defer func() {
-		_ = r.CommitBatch(context.TODO(), commits)
+		_ = r.CommitMessage(context.TODO(), processedMessages...)
 	}()
 
 	for {
 		mess, _ := r.ReadMessage(context.TODO())
 		processMessage(mess)
 
-		commits.Append(mess)
+		processedMessages = append(processedMessages, mess)
 
-		if len(commits) == 1000 {
-			_ = r.CommitBatch(context.TODO(), commits)
-			commits = pq.CommitBatch{}
+		if len(processedMessages) == 1000 {
+			_ = r.CommitMessage(context.TODO(), processedMessages...)
+			processedMessages = processedMessages[:0]
 		}
 	}
 }
@@ -73,8 +73,8 @@ func ReadMessageWithBatchCommit(r *pq.Reader) {
 func ReadBatchesWithBatchCommit(r *pq.Reader) {
 	for {
 		batch, _ := r.ReadMessageBatch(context.TODO())
-		processBatch(batch)
-		_ = r.Commit(context.TODO(), batch.GetCommitOffset())
+		processBatch(batch.Context(), batch)
+		_ = r.CommitBatch(context.TODO(), batch)
 	}
 }
 
@@ -83,78 +83,32 @@ func ReadBatchWithMessageCommits(r *pq.Reader) {
 		batch, _ := r.ReadMessageBatch(context.TODO())
 		for _, mess := range batch.Messages {
 			processMessage(mess)
-			_ = r.Commit(context.TODO())
+			_ = r.CommitBatch(context.TODO(), batch)
 		}
 	}
 }
 
-func ReadWithGracefulShudownSession(db ydb.Connection) {
-	r := db.Persqueue().Reader(context.TODO()) // WithOnSessionStart (callback)?
-
-	sessions := map[*pq.PartitionSession][]pq.Message{}
-
-	r.PartitionControler().OnSessionStart(func(info *pq.StartPartitionSessionRequest, response *pq.StartPartitionSessionResponse) error {
-		session := info.Session
-
-		go func() {
-			select {
-			case <-session.GracefulContext().Done():
-				messages := sessions[session]
-				processPartitionedMessages(session.Context(), messages)
-				_ = r.CommitBatch(context.TODO(), pq.CommitBatchFromMessages(messages...))
-			case <-session.Context().Done():
-				return
-			}
-		}()
-
-		return nil
-	})
-
-	r.PartitionControler().OnSessionShutdown(func(info *pq.StopPartitionSessionRequest, response *pq.StopPartitionSessionResponse) error {
-		// Нужно ли?
-
-		return nil
-	})
-
-	ensureSession := func(session *pq.PartitionSession) *pq.PartitionSession {
-		if _, ok := sessions[session]; ok {
-			return session
-		}
-
-		// Обработка на graceful shutdown
-		go func() {
-			select {
-			case <-session.GracefulContext().Done():
-				messages := sessions[session]
-				processPartitionedMessages(session.Context(), messages)
-				_ = r.CommitBatch(context.TODO(), pq.CommitBatchFromMessages(messages...))
-			case <-session.Context().Done():
-				return
-			}
-		}()
-
-		return session
-	}
+func ReadBatchingOnSDKSideShudownSession(db ydb.Connection) {
+	r := db.Persqueue().Reader(context.TODO(),
+		pq.WithBatchPreferCount(1000),
+	)
 
 	for {
-		m, _ := r.ReadMessage(context.TODO())
-		ensureSession(m.PartitionSession)
-		messages := sessions[m.PartitionSession]
-		messages = append(messages, m)
-		if len(sessions[m.PartitionSession]) == 1000 {
-			processPartitionedMessages(m.PartitionSession.Context(), messages)
-			_ = r.CommitBatch(context.TODO(), pq.CommitBatchFromMessages(messages...))
-			messages = messages[:0]
-		}
-		sessions[m.PartitionSession] = messages
+		batch, _ := r.ReadMessageBatch(context.TODO())
+		processBatch(batch.Context(), batch)
+		r.CommitBatch(context.TODO(), batch)
 	}
 }
 
-func processBatch(batch pq.Batch) {
+func processBatch(ctx context.Context, batch pq.Batch) {
+	if len(batch.Messages) == 0 {
+		return
+	}
+
 	buf := &bytes.Buffer{}
 	for _, mess := range batch.Messages {
 		_, _ = buf.ReadFrom(mess.Data)
-		writeBatchToDB(batch.Context(), batch.WriteTimestamp, buf.Bytes())
+		writeBatchToDB(ctx, batch.Messages[0].WrittenAt, buf.Bytes())
 	}
 }
 
