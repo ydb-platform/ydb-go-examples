@@ -47,14 +47,14 @@ func ReadWithCommitEveryMessage(r *pq.Reader) {
 	for {
 		mess, _ := r.ReadMessage(context.TODO())
 		processMessage(mess)
-		_ = r.CommitMessage(context.TODO(), mess)
+		_ = r.Commit(context.TODO(), mess)
 	}
 }
 
 func ReadMessageWithBatchCommit(r *pq.Reader) {
 	var processedMessages []pq.Message
 	defer func() {
-		_ = r.CommitMessage(context.TODO(), processedMessages...)
+		_ = r.CommitMessages(context.TODO(), processedMessages...)
 	}()
 
 	for {
@@ -64,7 +64,7 @@ func ReadMessageWithBatchCommit(r *pq.Reader) {
 		processedMessages = append(processedMessages, mess)
 
 		if len(processedMessages) == 1000 {
-			_ = r.CommitMessage(context.TODO(), processedMessages...)
+			_ = r.CommitMessages(context.TODO(), processedMessages...)
 			processedMessages = processedMessages[:0]
 		}
 	}
@@ -74,7 +74,7 @@ func ReadBatchesWithBatchCommit(r *pq.Reader) {
 	for {
 		batch, _ := r.ReadMessageBatch(context.TODO())
 		processBatch(batch.Context(), batch)
-		_ = r.CommitBatch(context.TODO(), batch)
+		_ = r.Commit(context.TODO(), batch)
 	}
 }
 
@@ -83,7 +83,7 @@ func ReadBatchWithMessageCommits(r *pq.Reader) {
 		batch, _ := r.ReadMessageBatch(context.TODO())
 		for _, mess := range batch.Messages {
 			processMessage(mess)
-			_ = r.CommitBatch(context.TODO(), batch)
+			_ = r.Commit(context.TODO(), batch)
 		}
 	}
 }
@@ -96,7 +96,7 @@ func ReadBatchingOnSDKSideShudownSession(db ydb.Connection) {
 	for {
 		batch, _ := r.ReadMessageBatch(context.TODO())
 		processBatch(batch.Context(), batch)
-		r.CommitBatch(context.TODO(), batch)
+		_ = r.Commit(context.TODO(), batch)
 	}
 }
 
