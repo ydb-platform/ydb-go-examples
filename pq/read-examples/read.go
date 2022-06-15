@@ -92,6 +92,7 @@ func ReadBatchWithMessageCommits(r *pq.Reader) {
 func ReadBatchingOnSDKSideShudownSession(db ydb.Connection) {
 	r := db.Persqueue().Reader(context.TODO(),
 		pq.WithBatchPreferCount(1000),
+		pq.WithBatchMaxTimeLag(time.Second),
 	)
 
 	for {
