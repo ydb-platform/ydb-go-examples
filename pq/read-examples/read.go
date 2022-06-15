@@ -101,19 +101,18 @@ func ReadBatchingOnSDKSideShudownSession(db ydb.Connection) {
 	}
 }
 
-func ReadWithExplicitPartitionStartStopHandler1(r *pq.Reader) {
-	r.OnStartPartition(func(ctx context.Context, req pq.OnStartPartitionRequest) (res pq.OnStartPartitionResponse, err error) {
-		offset, _ := externalSystemLock(ctx, req.Session.Topic, req.Session.PartitionID)
-
-		req.Session.OnGracefulStop(func(ctx context.Context, partition *pq.PartitionSession) error {
-			return externalSystemUnlock(ctx, partition.Topic, partition.PartitionID)
-		})
-
-		res.SetReadOffset(offset)
-		return res, nil
-	})
-
+func ReadWithExplicitPartitionStartStopHandler(db ydb.Connection) {
 	ctx := context.Background()
+	r := db.Persqueue().Reader(ctx,
+		pq.WithPartitionStartHandler(func(ctx context.Context, req pq.OnStartPartitionRequest) (res pq.OnStartPartitionResponse, err error) {
+			offset, _ := externalSystemLock(ctx, req.Session.Topic, req.Session.PartitionID)
+
+			res.SetReadOffset(offset)
+			return res, nil
+		}),
+		pq.WithPartitionStopHandler(stopPartitionHandler),
+	)
+
 	for {
 		batch, _ := r.ReadMessageBatch(ctx)
 
@@ -122,33 +121,18 @@ func ReadWithExplicitPartitionStartStopHandler1(r *pq.Reader) {
 	}
 }
 
-func ReadWithExplicitPartitionStartStopHandler2(r *pq.Reader) {
-	r.OnStartPartition(func(ctx context.Context, req pq.OnStartPartitionRequest) (res pq.OnStartPartitionResponse, err error) {
-		offset, _ := externalSystemLock(ctx, req.Session.Topic, req.Session.PartitionID)
-
-		res.SetReadOffset(offset)
-		return res, nil
-	})
-
-	r.OnStopPartition(func(ctx context.Context, req *pq.OnStopPartitionRequest) error {
-		return externalSystemUnlock(ctx, req.Partition.Topic, req.Partition.PartitionID)
-	})
-
-	ctx := context.Background()
-	for {
-		batch, _ := r.ReadMessageBatch(ctx)
-
-		processBatch(batch.Context(), batch)
-		_ = externalSystemCommit(batch.Context(), batch.PartitionSession().Topic, batch.PartitionSession().PartitionID, batch.ToOffset.ToInt64())
-	}
+func stopPartitionHandler(ctx context.Context, req *pq.OnStopPartitionRequest) error {
+	return externalSystemUnlock(ctx, req.Partition.Topic, req.Partition.PartitionID)
 }
 
-func ReceiveCommitNotify(r pq.Reader) {
+func ReceiveCommitNotify(db ydb.Connection) {
 	ctx := context.Background()
 
-	r.OnCommitAccepted(func(req pq.OnCommitAcceptedRequest) {
-		fmt.Println(req.PartitionSession.Topic, req.PartitionSession.PartitionID, req.ComittedOffset)
-	})
+	r := db.Persqueue().Reader(ctx,
+		pq.WithNotifyAcceptedCommit(func(req pq.OnCommitAcceptedRequest) {
+			fmt.Println(req.PartitionSession.Topic, req.PartitionSession.PartitionID, req.ComittedOffset)
+		}),
+	)
 
 	for {
 		mess, _ := r.ReadMessage(ctx)
