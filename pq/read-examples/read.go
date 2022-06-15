@@ -52,7 +52,7 @@ func ReadWithCommitEveryMessage(r *pq.Reader) {
 }
 
 func ReadMessageWithBatchCommit(r *pq.Reader) {
-	var processedMessages []pq.Message
+	var processedMessages []*pq.Message
 	defer func() {
 		_ = r.CommitMessages(context.TODO(), processedMessages...)
 	}()
@@ -82,7 +82,7 @@ func ReadBatchWithMessageCommits(r *pq.Reader) {
 	for {
 		batch, _ := r.ReadMessageBatch(context.TODO())
 		for _, mess := range batch.Messages {
-			processMessage(mess)
+			processMessage(&mess)
 			_ = r.Commit(context.TODO(), batch)
 		}
 	}
@@ -100,7 +100,49 @@ func ReadBatchingOnSDKSideShudownSession(db ydb.Connection) {
 	}
 }
 
-func processBatch(ctx context.Context, batch pq.Batch) {
+func ReadWithExplicitPartitionStartStopHandler1(r *pq.Reader) {
+	r.OnStartPartition(func(ctx context.Context, req pq.OnStartPartitionRequest) (res pq.OnStartPartitionResponse, err error) {
+		offset, _ := externalSystemLock(ctx, req.Session.Topic, req.Session.PartitionID)
+
+		req.Session.OnGracefulStop(func(ctx context.Context, partition *pq.PartitionSession) error {
+			return externalSystemUnlock(ctx, partition.Topic, partition.PartitionID)
+		})
+
+		res.SetReadOffset(offset)
+		return res, nil
+	})
+
+	ctx := context.Background()
+	for {
+		batch, _ := r.ReadMessageBatch(ctx)
+
+		processBatch(batch.Context(), batch)
+		_ = externalSystemCommit(batch.Context(), batch.PartitionSession().Topic, batch.PartitionSession().PartitionID, batch.ToOffset.ToInt64())
+	}
+}
+
+func ReadWithExplicitPartitionStartStopHandler2(r *pq.Reader) {
+	r.OnStartPartition(func(ctx context.Context, req pq.OnStartPartitionRequest) (res pq.OnStartPartitionResponse, err error) {
+		offset, _ := externalSystemLock(ctx, req.Session.Topic, req.Session.PartitionID)
+
+		res.SetReadOffset(offset)
+		return res, nil
+	})
+
+	r.OnStopPartition(func(ctx context.Context, req *pq.OnStopPartitionRequest) error {
+		return externalSystemUnlock(ctx, req.Partition.Topic, req.Partition.PartitionID)
+	})
+
+	ctx := context.Background()
+	for {
+		batch, _ := r.ReadMessageBatch(ctx)
+
+		processBatch(batch.Context(), batch)
+		_ = externalSystemCommit(batch.Context(), batch.PartitionSession().Topic, batch.PartitionSession().PartitionID, batch.ToOffset.ToInt64())
+	}
+}
+
+func processBatch(ctx context.Context, batch *pq.Batch) {
 	if len(batch.Messages) == 0 {
 		return
 	}
@@ -112,7 +154,7 @@ func processBatch(ctx context.Context, batch pq.Batch) {
 	}
 }
 
-func processMessage(m pq.Message) {
+func processMessage(m *pq.Message) {
 	body, _ := io.ReadAll(m.Data)
 	writeToDB(m.Context(), m.SeqNo, body)
 }
@@ -133,3 +175,15 @@ func writeBatchToDB(ctx context.Context, t time.Time, data []byte) {
 }
 
 func writeMessagesToDB(ctx context.Context, data []byte) {}
+
+func externalSystemLock(ctx context.Context, topic string, partition int64) (offset int64, err error) {
+	panic("not implemented")
+}
+
+func externalSystemUnlock(ctx context.Context, topic string, partition int64) error {
+	panic("not implemented")
+}
+
+func externalSystemCommit(ctx context.Context, topic string, partition int64, offset int64) error {
+	panic("not implemented")
+}
