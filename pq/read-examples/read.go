@@ -3,6 +3,7 @@ package read_examples
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"time"
 
@@ -139,6 +140,19 @@ func ReadWithExplicitPartitionStartStopHandler2(r *pq.Reader) {
 
 		processBatch(batch.Context(), batch)
 		_ = externalSystemCommit(batch.Context(), batch.PartitionSession().Topic, batch.PartitionSession().PartitionID, batch.ToOffset.ToInt64())
+	}
+}
+
+func ReceiveCommitNotify(r pq.Reader) {
+	ctx := context.Background()
+
+	r.OnCommitAccepted(func(req pq.OnCommitAcceptedRequest) {
+		fmt.Println(req.PartitionSession.Topic, req.PartitionSession.PartitionID, req.ComittedOffset)
+	})
+
+	for {
+		mess, _ := r.ReadMessage(ctx)
+		processMessage(mess)
 	}
 }
 
