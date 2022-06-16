@@ -74,7 +74,7 @@ func ReadMessageWithBatchCommit(r *topic.Reader) {
 func ReadBatchesWithBatchCommit(r *topic.Reader) {
 	for {
 		batch, _ := r.ReadMessageBatch(context.TODO())
-		processBatch(batch.Context(), batch)
+		processBatch(batch)
 		_ = r.Commit(context.TODO(), batch)
 	}
 }
@@ -97,7 +97,7 @@ func ReadMessagedWithCustomBatching(db ydb.Connection) {
 
 	for {
 		batch, _ := r.ReadMessageBatch(context.TODO())
-		processBatch(batch.Context(), batch)
+		processBatch(batch)
 		_ = r.Commit(context.TODO(), batch)
 	}
 }
@@ -122,7 +122,7 @@ func ReadWithExplicitPartitionStartStopHandler(db ydb.Connection) {
 	for {
 		batch, _ := r.ReadMessageBatch(ctx)
 
-		processBatch(batch.Context(), batch)
+		processBatch(batch)
 		_ = externalSystemCommit(batch.Context(), batch.PartitionSession().Topic, batch.PartitionSession().PartitionID, batch.ToOffset.ToInt64())
 	}
 }
@@ -149,18 +149,24 @@ func CommitSkippedStartOffsets(db ydb.Connection) {
 	var partSession *topic.PartitionSession
 	r := db.Topic().Reader(ctx, topic.WithPartitionStartHandler(func(ctx context.Context, req topic.OnStartPartitionRequest) (res topic.OnStartPartitionResponse, err error) {
 		partSession = req.Session
+		res.StartReadFrom(100)
+		res.SetCommitedOffset(50)
 		return res, nil
 	}))
-	partSession.CommitSkipped(from, to)
+	partSession.CommitSkipped(50, 100)
 
 	// 2
-	r.GetSessionForPartition(partNumber).Commit(from, to)
+	partSession.CommitFirstGap()
 
 	// 3
-	r.CommitSkipped(partNumber, from, to)
+	r.GetSessionForPartition(partNumber).Commit(50, 100)
+
+	// 4
+	r.CommitSkipped(partNumber, 50, 100)
 }
 
-func processBatch(ctx context.Context, batch *topic.Batch) {
+func processBatch(batch *topic.Batch) {
+	ctx := batch.Context() // batch.Context() will cancel if partition revoke by server or connection broke
 	if len(batch.Messages) == 0 {
 		return
 	}
@@ -174,7 +180,9 @@ func processBatch(ctx context.Context, batch *topic.Batch) {
 
 func processMessage(m *topic.Message) {
 	body, _ := io.ReadAll(m.Data)
-	writeToDB(m.Context(), m.SeqNo, body)
+	writeToDB(
+		m.Context(), // m.Context will skip if server revoke partition or connection to server broken
+		m.SeqNo, body)
 }
 
 func processPartitionedMessages(ctx context.Context, messages []topic.Message) {
