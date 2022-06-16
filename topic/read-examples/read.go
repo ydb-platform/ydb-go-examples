@@ -89,7 +89,7 @@ func ReadBatchWithMessageCommits(r *topic.Reader) {
 	}
 }
 
-func ReadBatchingOnSDKSideShudownSession(db ydb.Connection) {
+func ReadMessagedWithCustomBatching(db ydb.Connection) {
 	r := db.Persqueue().Reader(context.TODO(),
 		topic.WithBatchPreferCount(1000),
 		topic.WithBatchMaxTimeLag(time.Second),
