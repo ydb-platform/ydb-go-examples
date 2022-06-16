@@ -18,7 +18,7 @@ func CreateReader() *topic.Reader {
 		ydb.WithAccessTokenCredentials("..."),
 	)
 
-	r := db.Persqueue().Reader(context.TODO(),
+	r := db.Topic().Reader(context.TODO(),
 		// The context will use as base to create PartitionSession context
 		// Similar to http.Server.BaseContext
 		// optional, if skip - context.Background will use as base
@@ -90,7 +90,7 @@ func ReadBatchWithMessageCommits(r *topic.Reader) {
 }
 
 func ReadMessagedWithCustomBatching(db ydb.Connection) {
-	r := db.Persqueue().Reader(context.TODO(),
+	r := db.Topic().Reader(context.TODO(),
 		topic.WithBatchPreferCount(1000),
 		topic.WithBatchMaxTimeLag(time.Second),
 	)
@@ -104,7 +104,12 @@ func ReadMessagedWithCustomBatching(db ydb.Connection) {
 
 func ReadWithExplicitPartitionStartStopHandler(db ydb.Connection) {
 	ctx := context.Background()
-	r := db.Persqueue().Reader(ctx,
+
+	stopPartitionHandler := func(ctx context.Context, req *topic.OnStopPartitionRequest) error {
+		return externalSystemUnlock(ctx, req.Partition.Topic, req.Partition.PartitionID)
+	}
+
+	r := db.Topic().Reader(ctx,
 		topic.WithPartitionStartHandler(func(ctx context.Context, req topic.OnStartPartitionRequest) (res topic.OnStartPartitionResponse, err error) {
 			offset, _ := externalSystemLock(ctx, req.Session.Topic, req.Session.PartitionID)
 
@@ -122,14 +127,10 @@ func ReadWithExplicitPartitionStartStopHandler(db ydb.Connection) {
 	}
 }
 
-func stopPartitionHandler(ctx context.Context, req *topic.OnStopPartitionRequest) error {
-	return externalSystemUnlock(ctx, req.Partition.Topic, req.Partition.PartitionID)
-}
-
 func ReceiveCommitNotify(db ydb.Connection) {
 	ctx := context.Background()
 
-	r := db.Persqueue().Reader(ctx,
+	r := db.Topic().Reader(ctx,
 		topic.WithNotifyAcceptedCommit(func(req topic.OnCommitAcceptedRequest) {
 			fmt.Println(req.PartitionSession.Topic, req.PartitionSession.PartitionID, req.ComittedOffset)
 		}),
@@ -139,6 +140,24 @@ func ReceiveCommitNotify(db ydb.Connection) {
 		mess, _ := r.ReadMessage(ctx)
 		processMessage(mess)
 	}
+}
+
+func CommitSkippedStartOffsets(db ydb.Connection) {
+	ctx := context.Background()
+
+	// 1
+	var partSession *topic.PartitionSession
+	r := db.Topic().Reader(ctx, topic.WithPartitionStartHandler(func(ctx context.Context, req topic.OnStartPartitionRequest) (res topic.OnStartPartitionResponse, err error) {
+		partSession = req.Session
+		return res, nil
+	}))
+	partSession.CommitSkipped(from, to)
+
+	// 2
+	r.GetSessionForPartition(partNumber).Commit(from, to)
+
+	// 3
+	r.CommitSkipped(partNumber, from, to)
 }
 
 func processBatch(ctx context.Context, batch *topic.Batch) {
