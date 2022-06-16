@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/pq"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic"
 )
 
-func CreateReader() *pq.Reader {
+func CreateReader() *topic.Reader {
 	ctx := context.Background()
 	db, _ := ydb.Open(
 		ctx, "grpc://localhost:2136?database=/local",
@@ -22,13 +22,13 @@ func CreateReader() *pq.Reader {
 		// The context will use as base to create PartitionSession context
 		// Similar to http.Server.BaseContext
 		// optional, if skip - context.Background will use as base
-		pq.WithBaseContext(ctx),
-		pq.WithReadSelector(pq.ReadSelector{
+		topic.WithBaseContext(ctx),
+		topic.WithReadSelector(topic.ReadSelector{
 			Stream:             "test",
 			Partitions:         nil, // по умолчанию - все
 			SkipMessagesBefore: time.Time{},
 		}),
-		pq.WithReadSelector(pq.ReadSelector{
+		topic.WithReadSelector(topic.ReadSelector{
 			Stream:             "test-2",
 			Partitions:         []int64{1, 2, 3},
 			SkipMessagesBefore: time.Time{},
@@ -37,14 +37,14 @@ func CreateReader() *pq.Reader {
 	return r
 }
 
-func SimpleReadMessages(r *pq.Reader) {
+func SimpleReadMessages(r *topic.Reader) {
 	for {
 		mess, _ := r.ReadMessage(context.TODO())
 		processMessage(mess)
 	}
 }
 
-func ReadWithCommitEveryMessage(r *pq.Reader) {
+func ReadWithCommitEveryMessage(r *topic.Reader) {
 	for {
 		mess, _ := r.ReadMessage(context.TODO())
 		processMessage(mess)
@@ -52,8 +52,8 @@ func ReadWithCommitEveryMessage(r *pq.Reader) {
 	}
 }
 
-func ReadMessageWithBatchCommit(r *pq.Reader) {
-	var processedMessages []*pq.Message
+func ReadMessageWithBatchCommit(r *topic.Reader) {
+	var processedMessages []*topic.Message
 	defer func() {
 		_ = r.CommitMessages(context.TODO(), processedMessages...)
 	}()
@@ -71,7 +71,7 @@ func ReadMessageWithBatchCommit(r *pq.Reader) {
 	}
 }
 
-func ReadBatchesWithBatchCommit(r *pq.Reader) {
+func ReadBatchesWithBatchCommit(r *topic.Reader) {
 	for {
 		batch, _ := r.ReadMessageBatch(context.TODO())
 		processBatch(batch.Context(), batch)
@@ -79,7 +79,7 @@ func ReadBatchesWithBatchCommit(r *pq.Reader) {
 	}
 }
 
-func ReadBatchWithMessageCommits(r *pq.Reader) {
+func ReadBatchWithMessageCommits(r *topic.Reader) {
 	for {
 		batch, _ := r.ReadMessageBatch(context.TODO())
 		for _, mess := range batch.Messages {
@@ -91,8 +91,8 @@ func ReadBatchWithMessageCommits(r *pq.Reader) {
 
 func ReadBatchingOnSDKSideShudownSession(db ydb.Connection) {
 	r := db.Persqueue().Reader(context.TODO(),
-		pq.WithBatchPreferCount(1000),
-		pq.WithBatchMaxTimeLag(time.Second),
+		topic.WithBatchPreferCount(1000),
+		topic.WithBatchMaxTimeLag(time.Second),
 	)
 
 	for {
@@ -105,13 +105,13 @@ func ReadBatchingOnSDKSideShudownSession(db ydb.Connection) {
 func ReadWithExplicitPartitionStartStopHandler(db ydb.Connection) {
 	ctx := context.Background()
 	r := db.Persqueue().Reader(ctx,
-		pq.WithPartitionStartHandler(func(ctx context.Context, req pq.OnStartPartitionRequest) (res pq.OnStartPartitionResponse, err error) {
+		topic.WithPartitionStartHandler(func(ctx context.Context, req topic.OnStartPartitionRequest) (res topic.OnStartPartitionResponse, err error) {
 			offset, _ := externalSystemLock(ctx, req.Session.Topic, req.Session.PartitionID)
 
 			res.SetReadOffset(offset)
 			return res, nil
 		}),
-		pq.WithPartitionStopHandler(stopPartitionHandler),
+		topic.WithPartitionStopHandler(stopPartitionHandler),
 	)
 
 	for {
@@ -122,7 +122,7 @@ func ReadWithExplicitPartitionStartStopHandler(db ydb.Connection) {
 	}
 }
 
-func stopPartitionHandler(ctx context.Context, req *pq.OnStopPartitionRequest) error {
+func stopPartitionHandler(ctx context.Context, req *topic.OnStopPartitionRequest) error {
 	return externalSystemUnlock(ctx, req.Partition.Topic, req.Partition.PartitionID)
 }
 
@@ -130,7 +130,7 @@ func ReceiveCommitNotify(db ydb.Connection) {
 	ctx := context.Background()
 
 	r := db.Persqueue().Reader(ctx,
-		pq.WithNotifyAcceptedCommit(func(req pq.OnCommitAcceptedRequest) {
+		topic.WithNotifyAcceptedCommit(func(req topic.OnCommitAcceptedRequest) {
 			fmt.Println(req.PartitionSession.Topic, req.PartitionSession.PartitionID, req.ComittedOffset)
 		}),
 	)
@@ -141,7 +141,7 @@ func ReceiveCommitNotify(db ydb.Connection) {
 	}
 }
 
-func processBatch(ctx context.Context, batch *pq.Batch) {
+func processBatch(ctx context.Context, batch *topic.Batch) {
 	if len(batch.Messages) == 0 {
 		return
 	}
@@ -153,12 +153,12 @@ func processBatch(ctx context.Context, batch *pq.Batch) {
 	}
 }
 
-func processMessage(m *pq.Message) {
+func processMessage(m *topic.Message) {
 	body, _ := io.ReadAll(m.Data)
 	writeToDB(m.Context(), m.SeqNo, body)
 }
 
-func processPartitionedMessages(ctx context.Context, messages []pq.Message) {
+func processPartitionedMessages(ctx context.Context, messages []topic.Message) {
 	buf := &bytes.Buffer{}
 	for _, mess := range messages {
 		_, _ = buf.ReadFrom(mess.Data)
@@ -170,7 +170,6 @@ func writeToDB(ctx context.Context, id int64, body []byte) {
 }
 
 func writeBatchToDB(ctx context.Context, t time.Time, data []byte) {
-
 }
 
 func writeMessagesToDB(ctx context.Context, data []byte) {}
