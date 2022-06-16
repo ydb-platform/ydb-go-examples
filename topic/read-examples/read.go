@@ -113,7 +113,7 @@ func ReadWithExplicitPartitionStartStopHandler(db ydb.Connection) {
 		topic.WithPartitionStartHandler(func(ctx context.Context, req topic.OnStartPartitionRequest) (res topic.OnStartPartitionResponse, err error) {
 			offset, _ := externalSystemLock(ctx, req.Session.Topic, req.Session.PartitionID)
 
-			res.SetReadOffset(offset)
+			res.StartReadFrom(offset)
 			return res, nil
 		}),
 		topic.WithPartitionStopHandler(stopPartitionHandler),
