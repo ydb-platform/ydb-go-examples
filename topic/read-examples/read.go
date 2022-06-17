@@ -206,6 +206,7 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 
 		processBatch(batch)
 		_ = externalSystemCommit(batch.Context(), batch.PartitionSession().Topic, batch.PartitionSession().PartitionID, batch.ToOffset.ToInt64())
+		r.Commit(ctx, batch)
 	}
 }
 
