@@ -113,7 +113,7 @@ func ReadWithExplicitPartitionStartStopHandler(db ydb.Connection) {
 		topic.WithPartitionStartHandler(func(ctx context.Context, req topic.OnStartPartitionRequest) (res topic.OnStartPartitionResponse, err error) {
 			offset, _ := externalSystemLock(ctx, req.Session.Topic, req.Session.PartitionID)
 
-			res.StartReadFrom(offset)
+			res.StartWithAutoCommitFrom(offset)
 			return res, nil
 		}),
 		topic.WithPartitionStopHandler(stopPartitionHandler),
@@ -145,24 +145,10 @@ func ReceiveCommitNotify(db ydb.Connection) {
 func CommitSkippedStartOffsets(db ydb.Connection) {
 	ctx := context.Background()
 
-	// 1
-	var partSession *topic.PartitionSession
-	r := db.Topic().Reader(ctx, topic.WithPartitionStartHandler(func(ctx context.Context, req topic.OnStartPartitionRequest) (res topic.OnStartPartitionResponse, err error) {
-		partSession = req.Session
-		res.StartReadFrom(100)
-		res.SetCommitedOffset(50)
+	db.Topic().Reader(ctx, topic.WithPartitionStartHandler(func(ctx context.Context, req topic.OnStartPartitionRequest) (res topic.OnStartPartitionResponse, err error) {
+		res.StartWithAutoCommitFrom(100)
 		return res, nil
 	}))
-	partSession.CommitSkipped(50, 100)
-
-	// 2
-	partSession.CommitFirstGap()
-
-	// 3
-	r.GetSessionForPartition(partNumber).Commit(50, 100)
-
-	// 4
-	r.CommitSkipped(partNumber, 50, 100)
 }
 
 func processBatch(batch *topic.Batch) {
