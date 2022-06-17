@@ -125,10 +125,10 @@ func ReadWithOwnReadProgressStorage(ctx context.Context, db ydb.Connection) {
 
 func ReadWithExplicitPartitionStartStopHandler(ctx context.Context, db ydb.Connection) {
 	readContext, stopReader := context.WithCancel(context.Background())
+	defer stopReader()
 
 	r := db.Topic().Reader(ctx,
 		topic.WithReadSelector(topic.ReadSelector{Stream: "asd"}),
-		topic.WithBaseContext(readContext), // cancel the context mean code can't continue to work. It will close reader and cancel context of all partitions
 		topic.WithTracer(
 			trace.TopicReader{
 				OnPartitionReadStart: func(info trace.OnPartitionReadStartInfo) {
@@ -145,6 +145,58 @@ func ReadWithExplicitPartitionStartStopHandler(ctx context.Context, db ydb.Conne
 						}
 					}
 				},
+			},
+		),
+	)
+
+	go func() {
+		<-readContext.Done()
+		r.Close()
+	}()
+
+	for {
+		batch, _ := r.ReadMessageBatch(readContext)
+
+		processBatch(batch)
+		_ = externalSystemCommit(batch.Context(), batch.PartitionSession().Topic, batch.PartitionSession().PartitionID, batch.ToOffset.ToInt64())
+	}
+}
+
+func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx context.Context, db ydb.Connection) {
+	readContext, stopReader := context.WithCancel(context.Background())
+
+	readStartPosition := func(ctx context.Context, req topic.GetPartitionStartOffsetRequest) (res topic.GetPartitionStartOffsetResponse, err error) {
+		offset, err := readLastOffsetFromDB(ctx, req.Topic, req.PartitionID)
+		res.StartWithAutoCommitFrom(offset)
+
+		// Reader will stop if return err != nil
+		return res, err
+	}
+
+	onPartitionStart := func(info trace.OnPartitionReadStartInfo) {
+		err := externalSystemLock(info.PartitionContext, info.Topic, info.PartitionID)
+		if err != nil {
+			stopReader()
+		}
+	}
+
+	onPartitionStop := func(info trace.OnPartitionReadStopInfo) {
+		if info.Graceful {
+			err := externalSystemUnlock(ctx, info.Topic, info.PartitionID)
+			if err != nil {
+				stopReader()
+			}
+		}
+	}
+
+	r := db.Topic().Reader(ctx,
+		topic.WithReadSelector(topic.ReadSelector{Stream: "asd"}),
+		topic.WithBaseContext(readContext), // cancel the context mean code can't continue to work. It will close reader and cancel context of all partitions
+		topic.WithGetPartitionStartOffset(readStartPosition),
+		topic.WithTracer(
+			trace.TopicReader{
+				OnPartitionReadStart: onPartitionStart,
+				OnPartitionReadStop:  onPartitionStop,
 			},
 		),
 	)
