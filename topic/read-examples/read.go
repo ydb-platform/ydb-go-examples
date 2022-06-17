@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/topic"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicreader"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
-func CreateReader() *topic.Reader {
+func CreateReader() *topicreader.Reader {
 	ctx := context.Background()
 	db, _ := ydb.Open(
 		ctx, "grpc://localhost:2136?database=/local",
@@ -23,29 +23,29 @@ func CreateReader() *topic.Reader {
 		// The context will use as base to create PartitionSession context
 		// Similar to http.Server.BaseContext
 		// optional, if skip - context.Background will use as base
-		topic.WithBaseContext(ctx),
-		topic.WithReadSelector(topic.ReadSelector{
-			Stream:             "test",
-			Partitions:         nil, // по умолчанию - все
-			SkipMessagesBefore: time.Time{},
+		topicreader.WithBaseContext(ctx),
+		topicreader.WithReadSelector(topicreader.ReadSelector{
+			Stream:     "test",
+			Partitions: nil, // по умолчанию - все
+			ReadFrom:   time.Time{},
 		}),
-		topic.WithReadSelector(topic.ReadSelector{
-			Stream:             "test-2",
-			Partitions:         []int64{1, 2, 3},
-			SkipMessagesBefore: time.Time{},
+		topicreader.WithReadSelector(topicreader.ReadSelector{
+			Stream:     "test-2",
+			Partitions: []int64{1, 2, 3},
+			ReadFrom:   time.Time{},
 		}),
 	)
 	return r
 }
 
-func SimpleReadMessages(r *topic.Reader) {
+func SimpleReadMessages(r *topicreader.Reader) {
 	for {
 		mess, _ := r.ReadMessage(context.TODO())
 		processMessage(mess)
 	}
 }
 
-func ReadWithCommitEveryMessage(r *topic.Reader) {
+func ReadWithCommitEveryMessage(r *topicreader.Reader) {
 	for {
 		mess, _ := r.ReadMessage(context.TODO())
 		processMessage(mess)
@@ -53,8 +53,8 @@ func ReadWithCommitEveryMessage(r *topic.Reader) {
 	}
 }
 
-func ReadMessageWithBatchCommit(r *topic.Reader) {
-	var processedMessages []*topic.Message
+func ReadMessageWithBatchCommit(r *topicreader.Reader) {
+	var processedMessages []*topicreader.Message
 	defer func() {
 		_ = r.CommitMessages(context.TODO(), processedMessages...)
 	}()
@@ -72,7 +72,7 @@ func ReadMessageWithBatchCommit(r *topic.Reader) {
 	}
 }
 
-func ReadBatchesWithBatchCommit(r *topic.Reader) {
+func ReadBatchesWithBatchCommit(r *topicreader.Reader) {
 	for {
 		batch, _ := r.ReadMessageBatch(context.TODO())
 		processBatch(batch)
@@ -80,7 +80,7 @@ func ReadBatchesWithBatchCommit(r *topic.Reader) {
 	}
 }
 
-func ReadBatchWithMessageCommits(r *topic.Reader) {
+func ReadBatchWithMessageCommits(r *topicreader.Reader) {
 	for {
 		batch, _ := r.ReadMessageBatch(context.TODO())
 		for _, mess := range batch.Messages {
@@ -92,8 +92,8 @@ func ReadBatchWithMessageCommits(r *topic.Reader) {
 
 func ReadMessagedWithCustomBatching(db ydb.Connection) {
 	r := db.Topic().Reader(context.TODO(),
-		topic.WithBatchPreferCount(1000),
-		topic.WithBatchMaxTimeLag(time.Second),
+		topicreader.WithBatchPreferCount(1000),
+		topicreader.WithBatchMaxTimeLag(time.Second),
 	)
 
 	for {
@@ -105,8 +105,8 @@ func ReadMessagedWithCustomBatching(db ydb.Connection) {
 
 func ReadWithOwnReadProgressStorage(ctx context.Context, db ydb.Connection) {
 	r := db.Topic().Reader(ctx,
-		topic.WithReadSelector(topic.ReadSelector{Stream: "asd"}),
-		topic.WithGetPartitionStartOffset(func(ctx context.Context, req topic.GetPartitionStartOffsetRequest) (res topic.GetPartitionStartOffsetResponse, err error) {
+		topicreader.WithReadSelector(topicreader.ReadSelector{Stream: "asd"}),
+		topicreader.WithGetPartitionStartOffset(func(ctx context.Context, req topicreader.GetPartitionStartOffsetRequest) (res topicreader.GetPartitionStartOffsetResponse, err error) {
 			offset, err := readLastOffsetFromDB(ctx, req.Topic, req.PartitionID)
 			res.StartWithAutoCommitFrom(offset)
 
@@ -128,8 +128,8 @@ func ReadWithExplicitPartitionStartStopHandler(ctx context.Context, db ydb.Conne
 	defer stopReader()
 
 	r := db.Topic().Reader(ctx,
-		topic.WithReadSelector(topic.ReadSelector{Stream: "asd"}),
-		topic.WithTracer(
+		topicreader.WithReadSelector(topicreader.ReadSelector{Stream: "asd"}),
+		topicreader.WithTracer(
 			trace.TopicReader{
 				OnPartitionReadStart: func(info trace.OnPartitionReadStartInfo) {
 					err := externalSystemLock(info.PartitionContext, info.Topic, info.PartitionID)
@@ -165,7 +165,7 @@ func ReadWithExplicitPartitionStartStopHandler(ctx context.Context, db ydb.Conne
 func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx context.Context, db ydb.Connection) {
 	readContext, stopReader := context.WithCancel(context.Background())
 
-	readStartPosition := func(ctx context.Context, req topic.GetPartitionStartOffsetRequest) (res topic.GetPartitionStartOffsetResponse, err error) {
+	readStartPosition := func(ctx context.Context, req topicreader.GetPartitionStartOffsetRequest) (res topicreader.GetPartitionStartOffsetResponse, err error) {
 		offset, err := readLastOffsetFromDB(ctx, req.Topic, req.PartitionID)
 		res.StartWithAutoCommitFrom(offset)
 
@@ -190,10 +190,10 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 	}
 
 	r := db.Topic().Reader(ctx,
-		topic.WithReadSelector(topic.ReadSelector{Stream: "asd"}),
-		topic.WithBaseContext(readContext), // cancel the context mean code can't continue to work. It will close reader and cancel context of all partitions
-		topic.WithGetPartitionStartOffset(readStartPosition),
-		topic.WithTracer(
+		topicreader.WithReadSelector(topicreader.ReadSelector{Stream: "asd"}),
+		topicreader.WithBaseContext(readContext), // cancel the context mean code can't continue to work. It will close reader and cancel context of all partitions
+		topicreader.WithGetPartitionStartOffset(readStartPosition),
+		topicreader.WithTracer(
 			trace.TopicReader{
 				OnPartitionReadStart: onPartitionStart,
 				OnPartitionReadStop:  onPartitionStop,
@@ -214,8 +214,8 @@ func ReceiveCommitNotify(db ydb.Connection) {
 	ctx := context.Background()
 
 	r := db.Topic().Reader(ctx,
-		topic.WithReadSelector(topic.ReadSelector{Stream: "asd"}),
-		topic.WithTracer(trace.TopicReader{
+		topicreader.WithReadSelector(topicreader.ReadSelector{Stream: "asd"}),
+		topicreader.WithTracer(trace.TopicReader{
 			OnPartitionCommittedNotify: func(info trace.OnPartitionCommittedInfo) {
 				// called when receive commit notify from server
 				fmt.Println(info.Topic, info.PartitionID, info.CommittedOffset)
@@ -230,7 +230,7 @@ func ReceiveCommitNotify(db ydb.Connection) {
 	}
 }
 
-func processBatch(batch *topic.Batch) {
+func processBatch(batch topicreader.Batch) {
 	ctx := batch.Context() // batch.Context() will cancel if partition revoke by server or connection broke
 	if len(batch.Messages) == 0 {
 		return
@@ -243,14 +243,14 @@ func processBatch(batch *topic.Batch) {
 	}
 }
 
-func processMessage(m *topic.Message) {
+func processMessage(m *topicreader.Message) {
 	body, _ := io.ReadAll(m.Data)
 	writeToDB(
 		m.Context(), // m.Context will skip if server revoke partition or connection to server broken
 		m.SeqNo, body)
 }
 
-func processPartitionedMessages(ctx context.Context, messages []topic.Message) {
+func processPartitionedMessages(ctx context.Context, messages []topicreader.Message) {
 	buf := &bytes.Buffer{}
 	for _, mess := range messages {
 		_, _ = buf.ReadFrom(mess.Data)
