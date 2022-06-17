@@ -9,6 +9,7 @@ import (
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic"
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
 func CreateReader() *topic.Reader {
@@ -102,21 +103,16 @@ func ReadMessagedWithCustomBatching(db ydb.Connection) {
 	}
 }
 
-func ReadWithExplicitPartitionStartStopHandler(db ydb.Connection) {
-	ctx := context.Background()
-
-	stopPartitionHandler := func(ctx context.Context, req *topic.OnStopPartitionRequest) error {
-		return externalSystemUnlock(ctx, req.Partition.Topic, req.Partition.PartitionID)
-	}
-
+func ReadWithOwnReadProgressStorage(ctx context.Context, db ydb.Connection) {
 	r := db.Topic().Reader(ctx,
-		topic.WithPartitionStartHandler(func(ctx context.Context, req topic.OnStartPartitionRequest) (res topic.OnStartPartitionResponse, err error) {
-			offset, _ := externalSystemLock(ctx, req.Session.Topic, req.Session.PartitionID)
-
+		topic.WithReadSelector(topic.ReadSelector{Stream: "asd"}),
+		topic.WithGetPartitionStartOffset(func(ctx context.Context, req topic.GetPartitionStartOffsetRequest) (res topic.GetPartitionStartOffsetResponse, err error) {
+			offset, err := readLastOffsetFromDB(ctx, req.Topic, req.PartitionID)
 			res.StartWithAutoCommitFrom(offset)
-			return res, nil
+
+			// Reader will stop if return err != nil
+			return res, err
 		}),
-		topic.WithPartitionStopHandler(stopPartitionHandler),
 	)
 
 	for {
@@ -127,28 +123,58 @@ func ReadWithExplicitPartitionStartStopHandler(db ydb.Connection) {
 	}
 }
 
+func ReadWithExplicitPartitionStartStopHandler(ctx context.Context, db ydb.Connection) {
+	readContext, stopReader := context.WithCancel(context.Background())
+
+	r := db.Topic().Reader(ctx,
+		topic.WithReadSelector(topic.ReadSelector{Stream: "asd"}),
+		topic.WithBaseContext(readContext), // cancel the context mean code can't continue to work. It will close reader and cancel context of all partitions
+		topic.WithTracer(
+			trace.TopicReader{
+				OnPartitionReadStart: func(info trace.OnPartitionReadStartInfo) {
+					err := externalSystemLock(info.PartitionContext, info.Topic, info.PartitionID)
+					if err != nil {
+						stopReader()
+					}
+				},
+				OnPartitionReadStop: func(info trace.OnPartitionReadStopInfo) {
+					if info.Graceful {
+						err := externalSystemUnlock(ctx, info.Topic, info.PartitionID)
+						if err != nil {
+							stopReader()
+						}
+					}
+				},
+			},
+		),
+	)
+
+	for {
+		batch, _ := r.ReadMessageBatch(readContext)
+
+		processBatch(batch)
+		_ = externalSystemCommit(batch.Context(), batch.PartitionSession().Topic, batch.PartitionSession().PartitionID, batch.ToOffset.ToInt64())
+	}
+}
+
 func ReceiveCommitNotify(db ydb.Connection) {
 	ctx := context.Background()
 
 	r := db.Topic().Reader(ctx,
-		topic.WithNotifyAcceptedCommit(func(req topic.OnCommitAcceptedRequest) {
-			fmt.Println(req.PartitionSession.Topic, req.PartitionSession.PartitionID, req.ComittedOffset)
-		}),
+		topic.WithReadSelector(topic.ReadSelector{Stream: "asd"}),
+		topic.WithTracer(trace.TopicReader{
+			OnPartitionCommittedNotify: func(info trace.OnPartitionCommittedInfo) {
+				// called when receive commit notify from server
+				fmt.Println(info.Topic, info.PartitionID, info.CommittedOffset)
+			},
+		},
+		),
 	)
 
 	for {
 		mess, _ := r.ReadMessage(ctx)
 		processMessage(mess)
 	}
-}
-
-func CommitSkippedStartOffsets(db ydb.Connection) {
-	ctx := context.Background()
-
-	db.Topic().Reader(ctx, topic.WithPartitionStartHandler(func(ctx context.Context, req topic.OnStartPartitionRequest) (res topic.OnStartPartitionResponse, err error) {
-		res.StartWithAutoCommitFrom(100)
-		return res, nil
-	}))
 }
 
 func processBatch(batch *topic.Batch) {
@@ -187,7 +213,11 @@ func writeBatchToDB(ctx context.Context, t time.Time, data []byte) {
 
 func writeMessagesToDB(ctx context.Context, data []byte) {}
 
-func externalSystemLock(ctx context.Context, topic string, partition int64) (offset int64, err error) {
+func externalSystemLock(ctx context.Context, topic string, partition int64) (err error) {
+	panic("not implemented")
+}
+
+func readLastOffsetFromDB(ctx context.Context, topic string, partition int64) (int64, error) {
 	panic("not implemented")
 }
 
