@@ -1,4 +1,4 @@
-package read_examples
+package readexamples
 
 import (
 	"bytes"
@@ -54,7 +54,7 @@ func ReadWithCommitEveryMessage(r *topicreader.Reader) {
 }
 
 func ReadMessageWithBatchCommit(r *topicreader.Reader) {
-	var processedMessages []*topicreader.Message
+	var processedMessages []topicreader.Message
 	defer func() {
 		_ = r.CommitMessages(context.TODO(), processedMessages...)
 	}()
@@ -84,7 +84,7 @@ func ReadBatchWithMessageCommits(r *topicreader.Reader) {
 	for {
 		batch, _ := r.ReadMessageBatch(context.TODO())
 		for _, mess := range batch.Messages {
-			processMessage(&mess)
+			processMessage(mess)
 			_ = r.Commit(context.TODO(), batch)
 		}
 	}
@@ -106,20 +106,32 @@ func ReadMessagedWithCustomBatching(db ydb.Connection) {
 func ReadWithOwnReadProgressStorage(ctx context.Context, db ydb.Connection) {
 	r := db.Topic().Reader(ctx,
 		topicreader.WithReadSelector(topicreader.ReadSelector{Stream: "asd"}),
-		topicreader.WithGetPartitionStartOffset(func(ctx context.Context, req topicreader.GetPartitionStartOffsetRequest) (res topicreader.GetPartitionStartOffsetResponse, err error) {
-			offset, err := readLastOffsetFromDB(ctx, req.Topic, req.PartitionID)
-			res.StartWithAutoCommitFrom(offset)
+		topicreader.WithGetPartitionStartOffset(
+			func(
+				ctx context.Context,
+				req topicreader.GetPartitionStartOffsetRequest,
+			) (
+				res topicreader.GetPartitionStartOffsetResponse,
+				err error,
+			) {
+				offset, err := readLastOffsetFromDB(ctx, req.Topic, req.PartitionID)
+				res.StartWithAutoCommitFrom(offset)
 
-			// Reader will stop if return err != nil
-			return res, err
-		}),
+				// Reader will stop if return err != nil
+				return res, err
+			}),
 	)
 
 	for {
 		batch, _ := r.ReadMessageBatch(ctx)
 
 		processBatch(batch)
-		_ = externalSystemCommit(batch.Context(), batch.PartitionSession().Topic, batch.PartitionSession().PartitionID, batch.ToOffset.ToInt64())
+		_ = externalSystemCommit(
+			batch.Context(),
+			batch.PartitionSession().Topic,
+			batch.PartitionSession().PartitionID,
+			batch.ToOffset.ToInt64(),
+		)
 	}
 }
 
@@ -151,21 +163,30 @@ func ReadWithExplicitPartitionStartStopHandler(ctx context.Context, db ydb.Conne
 
 	go func() {
 		<-readContext.Done()
-		r.Close()
+		_ = r.Close()
 	}()
 
 	for {
 		batch, _ := r.ReadMessageBatch(readContext)
 
 		processBatch(batch)
-		_ = externalSystemCommit(batch.Context(), batch.PartitionSession().Topic, batch.PartitionSession().PartitionID, batch.ToOffset.ToInt64())
+		_ = externalSystemCommit(
+			batch.Context(),
+			batch.PartitionSession().Topic,
+			batch.PartitionSession().PartitionID,
+			batch.ToOffset.ToInt64(),
+		)
 	}
 }
 
 func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx context.Context, db ydb.Connection) {
 	readContext, stopReader := context.WithCancel(context.Background())
+	defer stopReader()
 
-	readStartPosition := func(ctx context.Context, req topicreader.GetPartitionStartOffsetRequest) (res topicreader.GetPartitionStartOffsetResponse, err error) {
+	readStartPosition := func(
+		ctx context.Context,
+		req topicreader.GetPartitionStartOffsetRequest,
+	) (res topicreader.GetPartitionStartOffsetResponse, err error) {
 		offset, err := readLastOffsetFromDB(ctx, req.Topic, req.PartitionID)
 		res.StartWithAutoCommitFrom(offset)
 
@@ -191,7 +212,9 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 
 	r := db.Topic().Reader(ctx,
 		topicreader.WithReadSelector(topicreader.ReadSelector{Stream: "asd"}),
-		topicreader.WithBaseContext(readContext), // cancel the context mean code can't continue to work. It will close reader and cancel context of all partitions
+
+		// all partition contexts based on base context and will cancel with readContext
+		topicreader.WithBaseContext(readContext),
 		topicreader.WithGetPartitionStartOffset(readStartPosition),
 		topicreader.WithTracer(
 			trace.TopicReader{
@@ -200,6 +223,10 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 			},
 		),
 	)
+	go func() {
+		<-readContext.Done()
+		_ = r.Close()
+	}()
 
 	for {
 		batch, _ := r.ReadMessageBatch(readContext)
@@ -243,7 +270,7 @@ func processBatch(batch topicreader.Batch) {
 	}
 }
 
-func processMessage(m *topicreader.Message) {
+func processMessage(m topicreader.Message) {
 	body, _ := io.ReadAll(m.Data)
 	writeToDB(
 		m.Context(), // m.Context will skip if server revoke partition or connection to server broken
