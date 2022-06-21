@@ -115,7 +115,7 @@ func ReadWithOwnReadProgressStorage(ctx context.Context, db ydb.Connection) {
 				err error,
 			) {
 				offset, err := readLastOffsetFromDB(ctx, req.Topic, req.PartitionID)
-				res.StartWithAutoCommitFrom(offset)
+				res.StartFrom(offset)
 
 				// Reader will stop if return err != nil
 				return res, err
@@ -188,7 +188,7 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 		req topicreader.GetPartitionStartOffsetRequest,
 	) (res topicreader.GetPartitionStartOffsetResponse, err error) {
 		offset, err := readLastOffsetFromDB(ctx, req.Topic, req.PartitionID)
-		res.StartWithAutoCommitFrom(offset)
+		res.StartFrom(offset)
 
 		// Reader will stop if return err != nil
 		return res, err
