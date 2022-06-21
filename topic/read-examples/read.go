@@ -92,7 +92,7 @@ func ReadBatchWithMessageCommits(r *topicreader.Reader) {
 
 func ReadMessagedWithCustomBatching(db ydb.Connection) {
 	r := db.Topic().Reader(context.TODO(),
-		topicreader.WithBatchPreferCount(1000),
+		topicreader.WithBatchOptions(topicreader.WithBatchMinCount(1000)),
 		topicreader.WithBatchMaxTimeLag(time.Second),
 	)
 
@@ -114,7 +114,7 @@ func ReadWithOwnReadProgressStorage(ctx context.Context, db ydb.Connection) {
 				res topicreader.GetPartitionStartOffsetResponse,
 				err error,
 			) {
-				offset, err := readLastOffsetFromDB(ctx, req.Topic, req.PartitionID)
+				offset, err := readLastOffsetFromDB(ctx, req.Session.Topic, req.Session.PartitionID)
 				res.StartFrom(offset)
 
 				// Reader will stop if return err != nil
@@ -187,7 +187,7 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 		ctx context.Context,
 		req topicreader.GetPartitionStartOffsetRequest,
 	) (res topicreader.GetPartitionStartOffsetResponse, err error) {
-		offset, err := readLastOffsetFromDB(ctx, req.Topic, req.PartitionID)
+		offset, err := readLastOffsetFromDB(ctx, req.Session.Topic, req.Session.PartitionID)
 		res.StartFrom(offset)
 
 		// Reader will stop if return err != nil
