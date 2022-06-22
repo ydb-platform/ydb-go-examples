@@ -53,22 +53,18 @@ func ReadWithCommitEveryMessage(r *topicreader.Reader) {
 	}
 }
 
-func ReadMessageWithBatchCommit(r *topicreader.Reader) {
-	var processedMessages []topicreader.Message
+func ReadMessageWithBatchCommit(ctx context.Context, db ydb.Connection) {
+	r := db.Topic().Reader(ctx,
+		topicreader.WithCommitMode(topicreader.CommitModeAsync),
+	)
 	defer func() {
-		_ = r.CommitMessages(context.TODO(), processedMessages...)
+		_ = r.Close() // wait until flush buffered commits
 	}()
 
 	for {
 		mess, _ := r.ReadMessage(context.TODO())
 		processMessage(mess)
-
-		processedMessages = append(processedMessages, mess)
-
-		if len(processedMessages) == 1000 {
-			_ = r.CommitMessages(context.TODO(), processedMessages...)
-			processedMessages = processedMessages[:0]
-		}
+		_ = r.Commit(ctx, mess) // will fast - in async mode commit will append to internal buffer only
 	}
 }
 
@@ -130,7 +126,7 @@ func ReadWithOwnReadProgressStorage(ctx context.Context, db ydb.Connection) {
 			batch.Context(),
 			batch.PartitionSession().Topic,
 			batch.PartitionSession().PartitionID,
-			batch.ToOffset.ToInt64(),
+			batch.EndOffset.ToInt64(),
 		)
 	}
 }
@@ -174,7 +170,7 @@ func ReadWithExplicitPartitionStartStopHandler(ctx context.Context, db ydb.Conne
 			batch.Context(),
 			batch.PartitionSession().Topic,
 			batch.PartitionSession().PartitionID,
-			batch.ToOffset.ToInt64(),
+			batch.EndOffset.ToInt64(),
 		)
 	}
 }
@@ -232,7 +228,7 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 		batch, _ := r.ReadMessageBatch(readContext)
 
 		processBatch(batch)
-		_ = externalSystemCommit(batch.Context(), batch.PartitionSession().Topic, batch.PartitionSession().PartitionID, batch.ToOffset.ToInt64())
+		_ = externalSystemCommit(batch.Context(), batch.PartitionSession().Topic, batch.PartitionSession().PartitionID, batch.EndOffset.ToInt64())
 		r.Commit(ctx, batch)
 	}
 }
