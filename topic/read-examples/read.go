@@ -88,7 +88,7 @@ func ReadBatchWithMessageCommits(r *topicreader.Reader) {
 
 func ReadMessagedWithCustomBatching(db ydb.Connection) {
 	r := db.Topic().Reader(context.TODO(),
-		topicreader.WithBatchOptions(topicreader.WithBatchMinCount(1000)),
+		topicreader.WithBatchReadOptions(topicreader.WithBatchMinCount(1000)),
 		topicreader.WithBatchMaxTimeLag(time.Second),
 	)
 
