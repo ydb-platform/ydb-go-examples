@@ -56,6 +56,7 @@ func ReadWithCommitEveryMessage(r *topicreader.Reader) {
 func ReadMessageWithBatchCommit(ctx context.Context, db ydb.Connection) {
 	r := db.Topic().Reader(ctx,
 		topicreader.WithCommitMode(topicreader.CommitModeAsync),
+		topicreader.WithCommitCountTrigger(1000),
 	)
 	defer func() {
 		_ = r.Close() // wait until flush buffered commits
