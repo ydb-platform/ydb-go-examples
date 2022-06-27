@@ -127,7 +127,7 @@ func ReadWithOwnReadProgressStorage(ctx context.Context, db ydb.Connection) {
 			batch.Context(),
 			batch.PartitionSession().Topic,
 			batch.PartitionSession().PartitionID,
-			batch.EndOffset.ToInt64(),
+			batch.EndOffset(),
 		)
 	}
 }
@@ -171,7 +171,7 @@ func ReadWithExplicitPartitionStartStopHandler(ctx context.Context, db ydb.Conne
 			batch.Context(),
 			batch.PartitionSession().Topic,
 			batch.PartitionSession().PartitionID,
-			batch.EndOffset.ToInt64(),
+			batch.EndOffset(),
 		)
 	}
 }
@@ -229,7 +229,7 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 		batch, _ := r.ReadMessageBatch(readContext)
 
 		processBatch(batch)
-		_ = externalSystemCommit(batch.Context(), batch.PartitionSession().Topic, batch.PartitionSession().PartitionID, batch.EndOffset.ToInt64())
+		_ = externalSystemCommit(batch.Context(), batch.PartitionSession().Topic, batch.PartitionSession().PartitionID, batch.EndOffset())
 		r.Commit(ctx, batch)
 	}
 }
