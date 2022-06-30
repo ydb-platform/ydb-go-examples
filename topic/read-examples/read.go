@@ -139,7 +139,7 @@ func ReadWithExplicitPartitionStartStopHandler(ctx context.Context, db ydb.Conne
 	r := db.Topic().Reader(ctx,
 		topicreader.WithReadSelector(topicreader.ReadSelector{Stream: "asd"}),
 		topicreader.WithTracer(
-			trace.TopicReader{
+			trace.Topic{
 				OnPartitionReadStart: func(info trace.OnPartitionReadStartInfo) {
 					err := externalSystemLock(info.PartitionContext, info.Topic, info.PartitionID)
 					if err != nil {
@@ -214,7 +214,7 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 		topicreader.WithBaseContext(readContext),
 		topicreader.WithGetPartitionStartOffset(readStartPosition),
 		topicreader.WithTracer(
-			trace.TopicReader{
+			trace.Topic{
 				OnPartitionReadStart: onPartitionStart,
 				OnPartitionReadStop:  onPartitionStop,
 			},
@@ -239,7 +239,7 @@ func ReceiveCommitNotify(db ydb.Connection) {
 
 	r := db.Topic().Reader(ctx,
 		topicreader.WithReadSelector(topicreader.ReadSelector{Stream: "asd"}),
-		topicreader.WithTracer(trace.TopicReader{
+		topicreader.WithTracer(trace.Topic{
 			OnPartitionCommittedNotify: func(info trace.OnPartitionCommittedInfo) {
 				// called when receive commit notify from server
 				fmt.Println(info.Topic, info.PartitionID, info.CommittedOffset)
