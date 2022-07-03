@@ -29,7 +29,7 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       GO: ${{ matrix.go-version }}
-      YDB_CONNECTION_STRING: grpcs://localhost:2135/?database=/local
+      YDB_CONNECTION_STRING: grpcs://localhost:2135/local
       YDB_SSL_ROOT_CERTIFICATES_FILE: /tmp/ydb_certs/ca.pem
       YDB_ANONYMOUS_CREDENTIALS: 1
     runs-on: ${{ matrix.os }}
@@ -62,7 +62,7 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       GO: ${{ matrix.go-version }}
-      YDB_CONNECTION_STRING: grpcs://localhost:2135/?database=/local
+      YDB_CONNECTION_STRING: grpcs://localhost:2135/local
       YDB_SSL_ROOT_CERTIFICATES_FILE: /tmp/ydb_certs/ca.pem
       YDB_ANONYMOUS_CREDENTIALS: 1
     runs-on: ${{ matrix.os }}
@@ -95,7 +95,7 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       GO: ${{ matrix.go-version }}
-      YDB_CONNECTION_STRING: grpcs://localhost:2135/?database=/local
+      YDB_CONNECTION_STRING: grpcs://localhost:2135/local
       YDB_SSL_ROOT_CERTIFICATES_FILE: /tmp/ydb_certs/ca.pem
       YDB_ANONYMOUS_CREDENTIALS: 1
     runs-on: ${{ matrix.os }}
@@ -128,7 +128,7 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       GO: ${{ matrix.go-version }}
-      YDB_CONNECTION_STRING: grpcs://localhost:2135/?database=/local
+      YDB_CONNECTION_STRING: grpcs://localhost:2135/local
       YDB_SSL_ROOT_CERTIFICATES_FILE: /tmp/ydb_certs/ca.pem
       YDB_ANONYMOUS_CREDENTIALS: 1
     runs-on: ${{ matrix.os }}
@@ -161,7 +161,7 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       GO: ${{ matrix.go-version }}
-      YDB_CONNECTION_STRING: grpcs://localhost:2135/?database=/local
+      YDB_CONNECTION_STRING: grpcs://localhost:2135/local
       YDB_SSL_ROOT_CERTIFICATES_FILE: /tmp/ydb_certs/ca.pem
       YDB_ANONYMOUS_CREDENTIALS: 1
     runs-on: ${{ matrix.os }}
@@ -194,7 +194,7 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       GO: ${{ matrix.go-version }}
-      YDB_CONNECTION_STRING: grpcs://localhost:2135/?database=/local
+      YDB_CONNECTION_STRING: grpcs://localhost:2135/local
       YDB_SSL_ROOT_CERTIFICATES_FILE: /tmp/ydb_certs/ca.pem
       YDB_ANONYMOUS_CREDENTIALS: 1
     runs-on: ${{ matrix.os }}
@@ -227,7 +227,7 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       GO: ${{ matrix.go-version }}
-      YDB_CONNECTION_STRING: grpcs://localhost:2135/?database=/local
+      YDB_CONNECTION_STRING: grpcs://localhost:2135/local
       YDB_SSL_ROOT_CERTIFICATES_FILE: /tmp/ydb_certs/ca.pem
       YDB_ANONYMOUS_CREDENTIALS: 1
     runs-on: ${{ matrix.os }}
@@ -260,7 +260,7 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       GO: ${{ matrix.go-version }}
-      YDB_CONNECTION_STRING: grpcs://localhost:2135/?database=/local
+      YDB_CONNECTION_STRING: grpcs://localhost:2135/local
       YDB_SSL_ROOT_CERTIFICATES_FILE: /tmp/ydb_certs/ca.pem
       YDB_ANONYMOUS_CREDENTIALS: 1
     runs-on: ${{ matrix.os }}
@@ -293,7 +293,7 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       GO: ${{ matrix.go-version }}
-      YDB_CONNECTION_STRING: grpcs://localhost:2135/?database=/local
+      YDB_CONNECTION_STRING: grpcs://localhost:2135/local
       YDB_SSL_ROOT_CERTIFICATES_FILE: /tmp/ydb_certs/ca.pem
       YDB_ANONYMOUS_CREDENTIALS: 1
     runs-on: ${{ matrix.os }}
@@ -326,7 +326,7 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       GO: ${{ matrix.go-version }}
-      YDB_CONNECTION_STRING: grpcs://localhost:2135/?database=/local
+      YDB_CONNECTION_STRING: grpcs://localhost:2135/local
       YDB_SSL_ROOT_CERTIFICATES_FILE: /tmp/ydb_certs/ca.pem
       YDB_ANONYMOUS_CREDENTIALS: 1
     runs-on: ${{ matrix.os }}
@@ -359,7 +359,7 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       GO: ${{ matrix.go-version }}
-      YDB_CONNECTION_STRING: grpcs://localhost:2135/?database=/local
+      YDB_CONNECTION_STRING: grpcs://localhost:2135/local
       YDB_SSL_ROOT_CERTIFICATES_FILE: /tmp/ydb_certs/ca.pem
       YDB_ANONYMOUS_CREDENTIALS: 1
     runs-on: ${{ matrix.os }}
@@ -392,7 +392,7 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       GO: ${{ matrix.go-version }}
-      YDB_CONNECTION_STRING: grpcs://localhost:2135/?database=/local
+      YDB_CONNECTION_STRING: grpcs://localhost:2135/local
       YDB_SSL_ROOT_CERTIFICATES_FILE: /tmp/ydb_certs/ca.pem
       YDB_ANONYMOUS_CREDENTIALS: 1
     runs-on: ${{ matrix.os }}
@@ -425,7 +425,7 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       GO: ${{ matrix.go-version }}
-      YDB_CONNECTION_STRING: grpcs://localhost:2135/?database=/local
+      YDB_CONNECTION_STRING: grpcs://localhost:2135/local
       YDB_SSL_ROOT_CERTIFICATES_FILE: /tmp/ydb_certs/ca.pem
       YDB_ANONYMOUS_CREDENTIALS: 1
     runs-on: ${{ matrix.os }}
