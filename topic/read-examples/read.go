@@ -49,7 +49,7 @@ func SimpleReadMessages(r *topicreader.Reader) {
 	}
 }
 
-func SimpleReadJsonMessage(ctx context.Context, r *topicreader.Reader) {
+func SimpleReadJSONMessage(ctx context.Context, r *topicreader.Reader) {
 	type S struct {
 		V int
 	}
@@ -59,7 +59,7 @@ func SimpleReadJsonMessage(ctx context.Context, r *topicreader.Reader) {
 	_ = mess.ConsumeContent(sugar.UnmarshalJsonMessageTo(&v))
 }
 
-func SimpleReadJsonMessage2(ctx context.Context, r *topicreader.Reader) {
+func SimpleReadJSONMessage2(ctx context.Context, r *topicreader.Reader) {
 	type S struct {
 		V int
 	}
