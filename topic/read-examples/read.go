@@ -3,6 +3,7 @@ package readexamples
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"time"
@@ -56,6 +57,16 @@ func SimpleReadJsonMessage(ctx context.Context, r *topicreader.Reader) {
 	var v S
 	mess, _ := r.ReadMessage(ctx)
 	_ = mess.ConsumeContent(sugar.UnmarshalJsonMessageTo(&v))
+}
+
+func SimpleReadJsonMessage2(ctx context.Context, r *topicreader.Reader) {
+	type S struct {
+		V int
+	}
+
+	var v S
+	mess, _ := r.ReadMessage(ctx)
+	_ = mess.ConsumeContent(sugar.UnmarshalMessageWith(json.Unmarshal, &v))
 }
 
 func SimplePrintMessageContent(ctx context.Context, r *topicreader.Reader) {
