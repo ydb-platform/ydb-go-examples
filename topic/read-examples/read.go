@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicreader"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
@@ -47,6 +48,28 @@ func SimpleReadMessages(r *topicreader.Reader) {
 	}
 }
 
+func SimpleReadJsonMessage(ctx context.Context, r *topicreader.Reader) {
+	type S struct {
+		V int
+	}
+
+	var v S
+	mess, _ := r.ReadMessage(ctx)
+	_ = mess.ConsumeContent(sugar.UnmarshalJsonMessageTo(&v))
+}
+
+func SimplePrintMessageContent(ctx context.Context, r *topicreader.Reader) {
+	type S struct {
+		V int
+	}
+
+	mess, _ := r.ReadMessage(ctx)
+	_ = mess.ConsumeContent(sugar.ConsumeWithCallback(func(data []byte) error {
+		fmt.Println()
+		return nil
+	}))
+}
+
 func ReadWithCommitEveryMessage(r *topicreader.Reader) {
 	for {
 		mess, _ := r.ReadMessage(context.TODO())
@@ -61,7 +84,7 @@ func ReadMessageWithBatchCommit(ctx context.Context, db ydb.Connection) {
 		topicreader.WithCommitCountTrigger(1000),
 	)
 	defer func() {
-		_ = r.Close() // wait until flush buffered commits
+		_ = r.Close(ctx) // wait until flush buffered commits
 	}()
 
 	for {
@@ -162,7 +185,7 @@ func ReadWithExplicitPartitionStartStopHandler(ctx context.Context, db ydb.Conne
 
 	go func() {
 		<-readContext.Done()
-		_ = r.Close()
+		_ = r.Close(ctx)
 	}()
 
 	for {
@@ -224,7 +247,7 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 	)
 	go func() {
 		<-readContext.Done()
-		_ = r.Close()
+		_ = r.Close(ctx)
 	}()
 
 	for {
@@ -264,13 +287,13 @@ func processBatch(batch topicreader.Batch) {
 
 	buf := &bytes.Buffer{}
 	for _, mess := range batch.Messages {
-		_, _ = buf.ReadFrom(mess.Data)
+		_, _ = buf.ReadFrom(mess.Data())
 		writeBatchToDB(ctx, batch.Messages[0].WrittenAt, buf.Bytes())
 	}
 }
 
 func processMessage(m topicreader.Message) {
-	body, _ := io.ReadAll(m.Data)
+	body, _ := io.ReadAll(m.Data())
 	writeToDB(
 		m.Context(), // m.Context will skip if server revoke partition or connection to server broken
 		m.SeqNo, body)
@@ -279,7 +302,7 @@ func processMessage(m topicreader.Message) {
 func processPartitionedMessages(ctx context.Context, messages []topicreader.Message) {
 	buf := &bytes.Buffer{}
 	for _, mess := range messages {
-		_, _ = buf.ReadFrom(mess.Data)
+		_, _ = buf.ReadFrom(mess.Data())
 		writeMessagesToDB(ctx, buf.Bytes())
 	}
 }
