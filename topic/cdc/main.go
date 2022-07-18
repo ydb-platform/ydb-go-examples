@@ -15,7 +15,6 @@ import (
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicreader"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3/scheme"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/options"
 
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
@@ -106,7 +105,7 @@ func main() {
 		cleanTable(ctx, db.Table(), prefix, tableName)
 	}()
 
-	topicPath := scheme.Path(tableName + "/feed")
+	topicPath := tableName + "/feed"
 	consumerName := "test-consumer"
 	log.Println("Create consumer")
 	err = db.Topic().AlterTopic(ctx, topicPath, options.WithAlterTopicAddConsumer(options.Consumer{
