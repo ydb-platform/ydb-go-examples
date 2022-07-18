@@ -23,12 +23,12 @@ func CreateReader() *topicreader.Reader {
 
 	r, _ := db.Topic().StreamRead("consumer", []topicreader.ReadSelector{
 		{
-			Stream:     "test",
+			Path:       "test",
 			Partitions: nil, // по умолчанию - все
 			ReadFrom:   time.Time{},
 		},
 		{
-			Stream:     "test-2",
+			Path:       "test-2",
 			Partitions: []int64{1, 2, 3},
 			ReadFrom:   time.Time{},
 		},
@@ -138,7 +138,7 @@ func ReadMessagedWithCustomBatching(db ydb.Connection) {
 
 func ReadWithOwnReadProgressStorage(ctx context.Context, db ydb.Connection) {
 	r, _ := db.Topic().StreamRead("consumer", nil,
-		topicreader.WithReadSelector(topicreader.ReadSelector{Stream: "asd"}),
+		topicreader.WithReadSelector(topicreader.ReadSelector{Path: "asd"}),
 		topicreader.WithGetPartitionStartOffset(
 			func(
 				ctx context.Context,
@@ -173,7 +173,7 @@ func ReadWithExplicitPartitionStartStopHandler(ctx context.Context, db ydb.Conne
 	defer stopReader()
 
 	r, _ := db.Topic().StreamRead("consumer", nil,
-		topicreader.WithReadSelector(topicreader.ReadSelector{Stream: "asd"}),
+		topicreader.WithReadSelector(topicreader.ReadSelector{Path: "asd"}),
 		topicreader.WithTracer(
 			trace.Topic{
 				OnPartitionReadStart: func(info trace.OnPartitionReadStartInfo) {
@@ -244,7 +244,7 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 	}
 
 	r, _ := db.Topic().StreamRead("consumer", nil,
-		topicreader.WithReadSelector(topicreader.ReadSelector{Stream: "asd"}),
+		topicreader.WithReadSelector(topicreader.ReadSelector{Path: "asd"}),
 
 		// all partition contexts based on base context and will cancel with readContext
 		topicreader.WithBaseContext(readContext),
@@ -274,7 +274,7 @@ func ReceiveCommitNotify(db ydb.Connection) {
 	ctx := context.Background()
 
 	r, _ := db.Topic().StreamRead("consumer", nil,
-		topicreader.WithReadSelector(topicreader.ReadSelector{Stream: "asd"}),
+		topicreader.WithReadSelector(topicreader.ReadSelector{Path: "asd"}),
 		topicreader.WithTracer(trace.Topic{
 			OnPartitionCommittedNotify: func(info trace.OnPartitionCommittedInfo) {
 				// called when receive commit notify from server

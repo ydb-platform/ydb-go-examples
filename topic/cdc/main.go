@@ -117,7 +117,7 @@ func main() {
 	}
 
 	log.Println("Start cdc read")
-	reader, err := db.Topic().StreamRead(consumerName, []topicreader.ReadSelector{{Stream: topicPath}})
+	reader, err := db.Topic().StreamRead(consumerName, []topicreader.ReadSelector{{Path: topicPath}})
 	if err != nil {
 		log.Fatal("failed to start read feed", err)
 	}
