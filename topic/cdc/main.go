@@ -128,7 +128,7 @@ func main() {
 		}
 
 		var event interface{}
-		err = mess.ConsumeContent(sugar.UnmarshalJsonMessageTo(&event))
+		err = mess.UnmarshalTo(sugar.JSONUnmarshaler(&event))
 		if err != nil {
 			panic(fmt.Errorf("failed to unmarshal json cdc", err))
 		}

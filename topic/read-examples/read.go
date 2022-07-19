@@ -56,7 +56,7 @@ func SimpleReadJSONMessageOptimized(ctx context.Context, r *topicreader.Reader) 
 
 	var v S
 	mess, _ := r.ReadMessage(ctx)
-	_ = mess.ConsumeContent(sugar.UnmarshalJsonMessageTo(&v))
+	_ = mess.UnmarshalTo(sugar.JSONUnmarshaler(&v))
 }
 
 func SimpleReadJSONMessageMoreAllocations(ctx context.Context, r *topicreader.Reader) {
@@ -77,7 +77,7 @@ func SimplePrintMessageContent(ctx context.Context, r *topicreader.Reader) {
 	}
 
 	mess, _ := r.ReadMessage(ctx)
-	_ = mess.ConsumeContent(sugar.ConsumeWithCallback(func(data []byte) error {
+	_ = mess.UnmarshalTo(sugar.ConsumeWithCallback(func(data []byte) error {
 		fmt.Println()
 		return nil
 	}))
