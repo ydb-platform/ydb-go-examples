@@ -11,11 +11,12 @@ import (
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicalter"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
+
 	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicreader"
-
-	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicdrop"
 
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
 )
@@ -108,7 +109,7 @@ func main() {
 	topicPath := tableName + "/feed"
 	consumerName := "test-consumer"
 	log.Println("Create consumer")
-	err = db.Topic().AlterTopic(ctx, topicPath, topicdrop.WithAlterTopicAddConsumer(topicdrop.Consumer{
+	err = db.Topic().AlterTopic(ctx, topicPath, topicalter.AddConsumers(topictypes.Consumer{
 		Name: consumerName,
 	}))
 	if err != nil {
