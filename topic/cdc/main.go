@@ -109,7 +109,7 @@ func main() {
 	topicPath := tableName + "/feed"
 	consumerName := "test-consumer"
 	log.Println("Create consumer")
-	err = db.Topic().AlterTopic(ctx, topicPath, topicalter.AddConsumers(topictypes.Consumer{
+	err = db.Topic().Alter(ctx, topicPath, topicalter.AddConsumers(topictypes.Consumer{
 		Name: consumerName,
 	}))
 	if err != nil {
