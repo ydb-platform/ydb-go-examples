@@ -15,7 +15,7 @@ import (
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicreader"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3/topic/options"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicdrop"
 
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
 )
@@ -108,7 +108,7 @@ func main() {
 	topicPath := tableName + "/feed"
 	consumerName := "test-consumer"
 	log.Println("Create consumer")
-	err = db.Topic().AlterTopic(ctx, topicPath, options.WithAlterTopicAddConsumer(options.Consumer{
+	err = db.Topic().AlterTopic(ctx, topicPath, topicdrop.WithAlterTopicAddConsumer(topicdrop.Consumer{
 		Name: consumerName,
 	}))
 	if err != nil {
@@ -116,7 +116,7 @@ func main() {
 	}
 
 	log.Println("Start cdc read")
-	reader, err := db.Topic().StreamRead(consumerName, []topicreader.ReadSelector{{Path: topicPath}})
+	reader, err := db.Topic().StartReader(consumerName, []topicreader.ReadSelector{{Path: topicPath}})
 	if err != nil {
 		log.Fatal("failed to start read feed", err)
 	}
