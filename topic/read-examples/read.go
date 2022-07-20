@@ -10,6 +10,7 @@ import (
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicreader"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
@@ -21,7 +22,7 @@ func CreateReader() *topicreader.Reader {
 		ydb.WithAccessTokenCredentials("..."),
 	)
 
-	r, _ := db.Topic().StartReader("consumer", []topicreader.ReadSelector{
+	r, _ := db.Topic().StartReader("consumer", []topicoptions.ReadSelector{
 		{
 			Path:       "test",
 			Partitions: nil, // по умолчанию - все
@@ -36,8 +37,8 @@ func CreateReader() *topicreader.Reader {
 		// The context will use as base to create PartitionSession context
 		// Similar to http.Server.BaseContext
 		// optional, if skip - context.Background will use as base
-		topicreader.WithBaseContext(ctx),
-		topicreader.WithReadSelector(),
+		topicoptions.WithBaseContext(ctx),
+		topicoptions.WithReadSelector(),
 	)
 	return r
 }
@@ -93,8 +94,8 @@ func ReadWithCommitEveryMessage(r *topicreader.Reader) {
 
 func ReadMessageWithBatchCommit(ctx context.Context, db ydb.Connection) {
 	r, _ := db.Topic().StartReader("consumer", nil,
-		topicreader.WithCommitMode(topicreader.CommitModeAsync),
-		topicreader.WithCommitCountTrigger(1000),
+		topicoptions.WithCommitMode(topicoptions.CommitModeAsync),
+		topicoptions.WithCommitCountTrigger(1000),
 	)
 	defer func() {
 		_ = r.Close(ctx) // wait until flush buffered commits
@@ -127,8 +128,8 @@ func ReadBatchWithMessageCommits(r *topicreader.Reader) {
 
 func ReadMessagedWithCustomBatching(db ydb.Connection) {
 	r, _ := db.Topic().StartReader("consumer", nil,
-		topicreader.WithBatchReadOptions(topicreader.WithBatchMinCount(1000)),
-		topicreader.WithBatchMaxTimeLag(time.Second),
+		topicoptions.WithBatchReadMinCount(1000),
+		topicoptions.WithBatchMaxTimeLag(time.Second),
 	)
 
 	for {
@@ -140,16 +141,16 @@ func ReadMessagedWithCustomBatching(db ydb.Connection) {
 
 func ReadWithOwnReadProgressStorage(ctx context.Context, db ydb.Connection) {
 	r, _ := db.Topic().StartReader("consumer", nil,
-		topicreader.WithReadSelector(topicreader.ReadSelector{Path: "asd"}),
-		topicreader.WithGetPartitionStartOffset(
+		topicoptions.WithReadSelector(topicoptions.ReadSelector{Path: "asd"}),
+		topicoptions.WithGetPartitionStartOffset(
 			func(
 				ctx context.Context,
-				req topicreader.GetPartitionStartOffsetRequest,
+				req topicoptions.GetPartitionStartOffsetRequest,
 			) (
-				res topicreader.GetPartitionStartOffsetResponse,
+				res topicoptions.GetPartitionStartOffsetResponse,
 				err error,
 			) {
-				offset, err := readLastOffsetFromDB(ctx, req.Session.Topic, req.Session.PartitionID)
+				offset, err := readLastOffsetFromDB(ctx, req.Topic, req.PartitionID)
 				res.StartFrom(offset)
 
 				// Reader will stop if return err != nil
@@ -175,8 +176,8 @@ func ReadWithExplicitPartitionStartStopHandler(ctx context.Context, db ydb.Conne
 	defer stopReader()
 
 	r, _ := db.Topic().StartReader("consumer", nil,
-		topicreader.WithReadSelector(topicreader.ReadSelector{Path: "asd"}),
-		topicreader.WithTracer(
+		topicoptions.WithReadSelector(topicoptions.ReadSelector{Path: "asd"}),
+		topicoptions.WithTracer(
 			trace.Topic{
 				OnPartitionReadStart: func(info trace.OnPartitionReadStartInfo) {
 					err := externalSystemLock(info.PartitionContext, info.Topic, info.PartitionID)
@@ -220,9 +221,9 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 
 	readStartPosition := func(
 		ctx context.Context,
-		req topicreader.GetPartitionStartOffsetRequest,
-	) (res topicreader.GetPartitionStartOffsetResponse, err error) {
-		offset, err := readLastOffsetFromDB(ctx, req.Session.Topic, req.Session.PartitionID)
+		req topicoptions.GetPartitionStartOffsetRequest,
+	) (res topicoptions.GetPartitionStartOffsetResponse, err error) {
+		offset, err := readLastOffsetFromDB(ctx, req.Topic, req.PartitionID)
 		res.StartFrom(offset)
 
 		// Reader will stop if return err != nil
@@ -246,12 +247,12 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 	}
 
 	r, _ := db.Topic().StartReader("consumer", nil,
-		topicreader.WithReadSelector(topicreader.ReadSelector{Path: "asd"}),
+		topicoptions.WithReadSelector(topicoptions.ReadSelector{Path: "asd"}),
 
 		// all partition contexts based on base context and will cancel with readContext
-		topicreader.WithBaseContext(readContext),
-		topicreader.WithGetPartitionStartOffset(readStartPosition),
-		topicreader.WithTracer(
+		topicoptions.WithBaseContext(readContext),
+		topicoptions.WithGetPartitionStartOffset(readStartPosition),
+		topicoptions.WithTracer(
 			trace.Topic{
 				OnPartitionReadStart: onPartitionStart,
 				OnPartitionReadStop:  onPartitionStop,
@@ -276,8 +277,8 @@ func ReceiveCommitNotify(db ydb.Connection) {
 	ctx := context.Background()
 
 	r, _ := db.Topic().StartReader("consumer", nil,
-		topicreader.WithReadSelector(topicreader.ReadSelector{Path: "asd"}),
-		topicreader.WithTracer(trace.Topic{
+		topicoptions.WithReadSelector(topicoptions.ReadSelector{Path: "asd"}),
+		topicoptions.WithTracer(trace.Topic{
 			OnPartitionCommittedNotify: func(info trace.OnPartitionCommittedInfo) {
 				// called when receive commit notify from server
 				fmt.Println(info.Topic, info.PartitionID, info.CommittedOffset)

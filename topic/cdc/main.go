@@ -17,7 +17,7 @@ import (
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicreader"
+	"github.com/ydb-platform/ydb-go-sdk/v3/internal/topic/topicreaderInternal"
 
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
 )
@@ -118,7 +118,7 @@ func main() {
 	}
 
 	log.Println("Start cdc read")
-	reader, err := db.Topic().StartReader(consumerName, []topicreader.ReadSelector{{Path: topicPath}})
+	reader, err := db.Topic().StartReader(consumerName, []topicreaderInternal.ReadSelector{{Path: topicPath}})
 	if err != nil {
 		log.Fatal("failed to start read feed", err)
 	}
