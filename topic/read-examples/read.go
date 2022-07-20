@@ -34,10 +34,6 @@ func CreateReader() *topicreader.Reader {
 			ReadFrom:   time.Time{},
 		},
 	},
-		// The context will use as base to create PartitionSession context
-		// Similar to http.Server.BaseContext
-		// optional, if skip - context.Background will use as base
-		topicoptions.WithBaseContext(ctx),
 		topicoptions.WithReadSelector(),
 	)
 	return r
@@ -87,8 +83,9 @@ func SimplePrintMessageContent(ctx context.Context, r *topicreader.Reader) {
 func ReadWithCommitEveryMessage(r *topicreader.Reader) {
 	for {
 		mess, _ := r.ReadMessage(context.TODO())
+		mess.Context()
 		processMessage(mess)
-		_ = r.Commit(context.TODO(), mess)
+		_ = r.Commit(context.TODO(), &mess)
 	}
 }
 
@@ -104,7 +101,7 @@ func ReadMessageWithBatchCommit(ctx context.Context, db ydb.Connection) {
 	for {
 		mess, _ := r.ReadMessage(context.TODO())
 		processMessage(mess)
-		_ = r.Commit(ctx, mess) // will fast - in async mode commit will append to internal buffer only
+		_ = r.Commit(ctx, &mess) // will fast - in async mode commit will append to internal buffer only
 	}
 }
 
@@ -112,7 +109,7 @@ func ReadBatchesWithBatchCommit(r *topicreader.Reader) {
 	for {
 		batch, _ := r.ReadMessageBatch(context.TODO())
 		processBatch(batch)
-		_ = r.Commit(context.TODO(), batch)
+		_ = r.Commit(context.TODO(), &batch)
 	}
 }
 
@@ -121,7 +118,7 @@ func ReadBatchWithMessageCommits(r *topicreader.Reader) {
 		batch, _ := r.ReadMessageBatch(context.TODO())
 		for _, mess := range batch.Messages {
 			processMessage(mess)
-			_ = r.Commit(context.TODO(), batch)
+			_ = r.Commit(context.TODO(), &batch)
 		}
 	}
 }
@@ -129,13 +126,12 @@ func ReadBatchWithMessageCommits(r *topicreader.Reader) {
 func ReadMessagedWithCustomBatching(db ydb.Connection) {
 	r, _ := db.Topic().StartReader("consumer", nil,
 		topicoptions.WithBatchReadMinCount(1000),
-		topicoptions.WithBatchMaxTimeLag(time.Second),
 	)
 
 	for {
 		batch, _ := r.ReadMessageBatch(context.TODO())
 		processBatch(batch)
-		_ = r.Commit(context.TODO(), batch)
+		_ = r.Commit(context.TODO(), &batch)
 	}
 }
 
@@ -249,8 +245,6 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 	r, _ := db.Topic().StartReader("consumer", nil,
 		topicoptions.WithReadSelector(topicoptions.ReadSelector{Path: "asd"}),
 
-		// all partition contexts based on base context and will cancel with readContext
-		topicoptions.WithBaseContext(readContext),
 		topicoptions.WithGetPartitionStartOffset(readStartPosition),
 		topicoptions.WithTracer(
 			trace.Topic{
@@ -269,7 +263,7 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 
 		processBatch(batch)
 		_ = externalSystemCommit(batch.Context(), batch.PartitionSession().Topic, batch.PartitionSession().PartitionID, batch.EndOffset())
-		r.Commit(ctx, batch)
+		r.Commit(ctx, &batch)
 	}
 }
 
