@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +13,7 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicreader"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicsugar"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
@@ -36,8 +36,15 @@ func CreateReader() *topicreader.Reader {
 			ReadFrom:   time.Time{},
 		},
 	},
+		topicoptions.WithAddDecoder(topictypes.CodecLzop, func(input io.Reader) (io.Reader, error) {
+			return NewLzoReader(input)
+		}),
 	)
 	return r
+}
+
+func NewLzoReader(r io.Reader) (*bytes.Reader, error) {
+	panic("not implemented")
 }
 
 func SimpleReadMessages(r *topicreader.Reader) {
@@ -57,16 +64,10 @@ func SimpleReadJSONMessageOptimized(ctx context.Context, r *topicreader.Reader) 
 	_ = topicsugar.JSONUnmarshal(&mess, &v)
 }
 
-func SimpleReadJSONMessageMoreAllocations(ctx context.Context, r *topicreader.Reader) {
-	type S struct {
-		V int
-	}
-
-	var v S
+func SimpleGetMessageContentWithoutOptimizations(ctx context.Context, r *topicreader.Reader) {
 	mess, _ := r.ReadMessage(ctx)
-
-	decoder := json.NewDecoder(mess.Data())
-	_ = decoder.Decode(&v)
+	content, _ := io.ReadAll(&mess)
+	fmt.Println(string(content))
 }
 
 type MyMessage struct {
@@ -93,7 +94,7 @@ func EffectiveReadMessageToOwnType(ctx context.Context, r *topicreader.Reader) {
 			_ = batch.Messages[i].UnmarshalTo(&results[i])
 		}
 		processResults(results)
-		_ = r.Commit(ctx, &batch)
+		_ = r.Commit(ctx, batch)
 	}
 }
 
@@ -118,7 +119,7 @@ func ReadWithCommitEveryMessage(r *topicreader.Reader) {
 		mess, _ := r.ReadMessage(context.TODO())
 		mess.Context()
 		processMessage(mess)
-		_ = r.Commit(context.TODO(), &mess)
+		_ = r.Commit(mess.Context(), mess)
 	}
 }
 
@@ -142,7 +143,7 @@ func ReadBatchesWithBatchCommit(r *topicreader.Reader) {
 	for {
 		batch, _ := r.ReadMessageBatch(context.TODO())
 		processBatch(batch)
-		_ = r.Commit(context.TODO(), &batch)
+		_ = r.Commit(batch.Context(), batch)
 	}
 }
 
@@ -151,7 +152,7 @@ func ReadBatchWithMessageCommits(r *topicreader.Reader) {
 		batch, _ := r.ReadMessageBatch(context.TODO())
 		for _, mess := range batch.Messages {
 			processMessage(mess)
-			_ = r.Commit(context.TODO(), &batch)
+			_ = r.Commit(context.TODO(), batch)
 		}
 	}
 }
@@ -164,7 +165,7 @@ func ReadMessagedWithCustomBatching(db ydb.Connection) {
 	for {
 		batch, _ := r.ReadMessageBatch(context.TODO())
 		processBatch(batch)
-		_ = r.Commit(context.TODO(), &batch)
+		_ = r.Commit(context.TODO(), batch)
 	}
 }
 
@@ -293,7 +294,7 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 
 		processBatch(batch)
 		_ = externalSystemCommit(batch.Context(), batch.PartitionSession().Topic, batch.PartitionSession().PartitionID, batch.EndOffset())
-		r.Commit(ctx, &batch)
+		_ = r.Commit(ctx, batch)
 	}
 }
 
@@ -324,13 +325,13 @@ func processBatch(batch topicreader.Batch) {
 
 	buf := &bytes.Buffer{}
 	for _, mess := range batch.Messages {
-		_, _ = buf.ReadFrom(mess.Data())
+		_, _ = buf.ReadFrom(&mess)
 		writeBatchToDB(ctx, batch.Messages[0].WrittenAt, buf.Bytes())
 	}
 }
 
 func processMessage(m topicreader.Message) {
-	body, _ := io.ReadAll(m.Data())
+	body, _ := io.ReadAll(&m)
 	writeToDB(
 		m.Context(), // m.Context will skip if server revoke partition or connection to server broken
 		m.SeqNo, body)
@@ -339,7 +340,7 @@ func processMessage(m topicreader.Message) {
 func processPartitionedMessages(ctx context.Context, messages []topicreader.Message) {
 	buf := &bytes.Buffer{}
 	for _, mess := range messages {
-		_, _ = buf.ReadFrom(mess.Data())
+		_, _ = buf.ReadFrom(&mess)
 		writeMessagesToDB(ctx, buf.Bytes())
 	}
 }
