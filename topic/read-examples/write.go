@@ -1,4 +1,4 @@
-package write_examples
+package readexamples
 
 import (
 	"context"
