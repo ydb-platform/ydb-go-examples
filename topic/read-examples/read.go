@@ -3,15 +3,17 @@ package readexamples
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"time"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
-	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicreader"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicsugar"
 	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
@@ -34,7 +36,6 @@ func CreateReader() *topicreader.Reader {
 			ReadFrom:   time.Time{},
 		},
 	},
-		topicoptions.WithReadSelector(),
 	)
 	return r
 }
@@ -53,7 +54,7 @@ func SimpleReadJSONMessageOptimized(ctx context.Context, r *topicreader.Reader) 
 
 	var v S
 	mess, _ := r.ReadMessage(ctx)
-	_ = mess.UnmarshalTo(sugar.JSONUnmarshaler(&v))
+	_ = topicsugar.JSONUnmarshal(&mess, &v)
 }
 
 func SimpleReadJSONMessageMoreAllocations(ctx context.Context, r *topicreader.Reader) {
@@ -68,13 +69,45 @@ func SimpleReadJSONMessageMoreAllocations(ctx context.Context, r *topicreader.Re
 	_ = decoder.Decode(&v)
 }
 
+type MyMessage struct {
+	ID         byte
+	ChangeType byte
+	Delta      uint32
+}
+
+func (m *MyMessage) UnmarshalYDBTopicMessage(data []byte) error {
+	if len(data) != 6 {
+		return errors.New("bad data len")
+	}
+	m.ID = data[0]
+	m.ChangeType = data[1]
+	m.Delta = binary.BigEndian.Uint32(data[2:])
+	return nil
+}
+
+func EffectiveReadMessageToOwnType(ctx context.Context, r *topicreader.Reader) {
+	for {
+		batch, _ := r.ReadMessageBatch(ctx)
+		results := make([]MyMessage, len(batch.Messages))
+		for i := range results {
+			_ = batch.Messages[i].UnmarshalTo(&results[i])
+		}
+		processResults(results)
+		_ = r.Commit(ctx, &batch)
+	}
+}
+
+func processResults(_ []MyMessage) {
+
+}
+
 func SimplePrintMessageContent(ctx context.Context, r *topicreader.Reader) {
 	type S struct {
 		V int
 	}
 
 	mess, _ := r.ReadMessage(ctx)
-	_ = mess.UnmarshalTo(sugar.ConsumeWithCallback(func(data []byte) error {
+	_ = mess.UnmarshalTo(topicsugar.ConsumeWithCallback(func(data []byte) error {
 		fmt.Println()
 		return nil
 	}))
@@ -136,8 +169,7 @@ func ReadMessagedWithCustomBatching(db ydb.Connection) {
 }
 
 func ReadWithOwnReadProgressStorage(ctx context.Context, db ydb.Connection) {
-	r, _ := db.Topic().StartReader("consumer", nil,
-		topicoptions.WithReadSelector(topicoptions.ReadSelector{Path: "asd"}),
+	r, _ := db.Topic().StartReader("consumer", topicoptions.ReadTopic("asd"),
 		topicoptions.WithGetPartitionStartOffset(
 			func(
 				ctx context.Context,
@@ -171,8 +203,7 @@ func ReadWithExplicitPartitionStartStopHandler(ctx context.Context, db ydb.Conne
 	readContext, stopReader := context.WithCancel(context.Background())
 	defer stopReader()
 
-	r, _ := db.Topic().StartReader("consumer", nil,
-		topicoptions.WithReadSelector(topicoptions.ReadSelector{Path: "asd"}),
+	r, _ := db.Topic().StartReader("consumer", topicoptions.ReadTopic("asd"),
 		topicoptions.WithTracer(
 			trace.Topic{
 				OnPartitionReadStart: func(info trace.OnPartitionReadStartInfo) {
@@ -242,8 +273,7 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 		}
 	}
 
-	r, _ := db.Topic().StartReader("consumer", nil,
-		topicoptions.WithReadSelector(topicoptions.ReadSelector{Path: "asd"}),
+	r, _ := db.Topic().StartReader("consumer", topicoptions.ReadTopic("asd"),
 
 		topicoptions.WithGetPartitionStartOffset(readStartPosition),
 		topicoptions.WithTracer(
@@ -270,8 +300,7 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 func ReceiveCommitNotify(db ydb.Connection) {
 	ctx := context.Background()
 
-	r, _ := db.Topic().StartReader("consumer", nil,
-		topicoptions.WithReadSelector(topicoptions.ReadSelector{Path: "asd"}),
+	r, _ := db.Topic().StartReader("consumer", topicoptions.ReadTopic("asd"),
 		topicoptions.WithTracer(trace.Topic{
 			OnPartitionCommittedNotify: func(info trace.OnPartitionCommittedInfo) {
 				// called when receive commit notify from server
