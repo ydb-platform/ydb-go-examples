@@ -65,6 +65,16 @@ func SimpleReadMessages(r *topicreader.Reader) {
 	}
 }
 
+func SimpleReadMessagesWithErrorHandle(r *topicreader.Reader) error {
+	for {
+		mess, err := r.ReadMessage(context.TODO())
+		if err != nil {
+			return err
+		}
+		processMessage(mess)
+	}
+}
+
 func SimpleReadJSONMessageOptimized(ctx context.Context, r *topicreader.Reader) {
 	type S struct {
 		V int

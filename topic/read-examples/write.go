@@ -33,6 +33,14 @@ func CreateWriter() *topicwriter.Writer {
 		topicoptions.WithMessageGroupID("asd"),
 	)
 
+	// SessionMetadata
+	w, _ = db.Topic().StartWriter("/database/topic", "producer-id",
+		topicoptions.WithWriteSessionMeta(topicoptions.WriteSessionMetadata{
+			"sender-fqdn": "host-1",
+			"key":         "val",
+		}),
+	)
+
 	// WithRequestLastSeqNo from server
 	w, _ = db.Topic().StartWriter("/database/topic", "prodicer-id",
 		topicoptions.WithOnWriterConnected(func(info topicwriter.WithOnWriterConnectedInfo) error {
