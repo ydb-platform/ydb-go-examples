@@ -92,7 +92,7 @@ VALUES
 `, prefix, tableName)
 	for {
 		id := uint64(rand.Intn(maxID))
-		val := "val-" + strconv.Itoa(rand.Int())
+		val := "val-" + strconv.Itoa(rand.Intn(10))
 		params := table.NewQueryParameters(
 			table.ValueParam("$id", types.Uint64Value(id)),
 			table.ValueParam("$value", types.UTF8Value(val)),
@@ -106,7 +106,7 @@ VALUES
 	}
 }
 
-func cleanTable(ctx context.Context, c table.Client, prefix, tableName string) {
+func removeFromTable(ctx context.Context, c table.Client, prefix, tableName string) {
 	query := fmt.Sprintf(`
 PRAGMA TablePathPrefix("%v");
 

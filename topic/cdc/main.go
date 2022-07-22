@@ -10,12 +10,10 @@ import (
 	"time"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
-
-	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
-
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicsugar"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
 )
@@ -25,7 +23,57 @@ var (
 	prefix string
 )
 
-func init() {
+func main() {
+	readFlags()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	db, err := ydb.Open(
+		ctx,
+		dsn,
+		environ.WithEnvironCredentials(ctx),
+	)
+	if err != nil {
+		panic(fmt.Errorf("connect error: %w", err))
+	}
+	defer func() { _ = db.Close(ctx) }()
+
+	prefix = path.Join(db.Name(), prefix)
+	tableName := "cdc"
+	topicPath := tableName + "/feed"
+	consumerName := "test-consumer"
+
+	prepareTableWithCDC(ctx, db, prefix, tableName, topicPath, consumerName)
+
+	go fillTable(ctx, db.Table(), prefix, tableName)
+	go func() {
+		time.Sleep(interval / 2)
+		removeFromTable(ctx, db.Table(), prefix, tableName)
+	}()
+
+	// Connect to changefeed
+
+	log.Println("Start cdc read")
+	reader, err := db.Topic().StartReader(consumerName, []topicoptions.ReadSelector{{Path: topicPath}})
+	if err != nil {
+		log.Fatal("failed to start read feed", err)
+	}
+
+	for {
+		mess, err := reader.ReadMessage(ctx)
+		if err != nil {
+			panic(fmt.Errorf("failed to read message", err))
+		}
+
+		var event interface{}
+		err = topicsugar.JSONUnmarshal(mess, &event)
+		if err != nil {
+			panic(fmt.Errorf("failed to unmarshal json cdc", err))
+		}
+		log.Println("new cdc event:", event)
+	}
+}
+
+func readFlags() {
 	required := []string{"ydb"}
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	flagSet.Usage = func() {
@@ -60,25 +108,10 @@ func init() {
 	}
 }
 
-func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	db, err := ydb.Open(
-		ctx,
-		dsn,
-		environ.WithEnvironCredentials(ctx),
-	)
-	if err != nil {
-		panic(fmt.Errorf("connect error: %w", err))
-	}
-	defer func() { _ = db.Close(ctx) }()
-
-	prefix = path.Join(db.Name(), prefix)
-
-	tableName := "cdc"
+func prepareTableWithCDC(ctx context.Context, db ydb.Connection, prefix, tableName, topicPath, consumerName string) {
 
 	log.Println("Drop table (if exists)...")
-	err = dropTableIfExists(
+	err := dropTableIfExists(
 		ctx,
 		db.Table(),
 		path.Join(prefix, tableName),
@@ -99,14 +132,6 @@ func main() {
 	}
 	log.Println("Create table done")
 
-	go fillTable(ctx, db.Table(), prefix, tableName)
-	go func() {
-		time.Sleep(interval / 2)
-		cleanTable(ctx, db.Table(), prefix, tableName)
-	}()
-
-	topicPath := tableName + "/feed"
-	consumerName := "test-consumer"
 	log.Println("Create consumer")
 	err = db.Topic().Alter(ctx, topicPath, topicoptions.AlterWithAddConsumers(topictypes.Consumer{
 		Name: consumerName,
@@ -115,23 +140,4 @@ func main() {
 		panic(fmt.Errorf("failed to create feed consumer", err))
 	}
 
-	log.Println("Start cdc read")
-	reader, err := db.Topic().StartReader(consumerName, []topicoptions.ReadSelector{{Path: topicPath}})
-	if err != nil {
-		log.Fatal("failed to start read feed", err)
-	}
-
-	for {
-		mess, err := reader.ReadMessage(ctx)
-		if err != nil {
-			panic(fmt.Errorf("failed to read message", err))
-		}
-
-		var event interface{}
-		err = mess.UnmarshalTo(sugar.JSONUnmarshaler(&event))
-		if err != nil {
-			panic(fmt.Errorf("failed to unmarshal json cdc", err))
-		}
-		log.Println("new cdc event:", event)
-	}
 }
