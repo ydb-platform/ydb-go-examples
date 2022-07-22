@@ -2,6 +2,7 @@ package readexamples
 
 import (
 	"bytes"
+	"compress/flate"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -19,11 +20,17 @@ import (
 
 func CreateReader() *topicreader.Reader {
 	ctx := context.Background()
+
 	db, _ := ydb.Open(
 		ctx, "grpc://localhost:2136?database=/local",
 		ydb.WithAccessTokenCredentials("..."),
 	)
 
+	r, _ := db.Topic().StartReader("consumer", topicoptions.ReadTopic("asd"))
+	return r
+}
+
+func CreateReaderWithManyTopics(db ydb.Connection) *topicreader.Reader {
 	r, _ := db.Topic().StartReader("consumer", []topicoptions.ReadSelector{
 		{
 			Path:       "test",
@@ -36,15 +43,21 @@ func CreateReader() *topicreader.Reader {
 			ReadFrom:   time.Time{},
 		},
 	},
-		topicoptions.WithAddDecoder(topictypes.CodecLzop, func(input io.Reader) (io.Reader, error) {
-			return NewLzoReader(input)
-		}),
 	)
 	return r
 }
 
-func NewLzoReader(r io.Reader) (*bytes.Reader, error) {
-	panic("not implemented")
+func CreateReaderWithCustomCodec(db ydb.Connection) *topicreader.Reader {
+	const CustomFlateCodec = topictypes.Codec(10001)
+
+	r, _ := db.Topic().StartReader("consumer", topicoptions.ReadTopic("asd"),
+		// Add custom codec
+		topicoptions.WithAddDecoder(CustomFlateCodec, func(input io.Reader) (io.Reader, error) {
+			return flate.NewReader(input), nil
+		}),
+	)
+	return r
+
 }
 
 func SimpleReadMessages(r *topicreader.Reader) {
@@ -61,7 +74,7 @@ func SimpleReadJSONMessageOptimized(ctx context.Context, r *topicreader.Reader) 
 
 	var v S
 	mess, _ := r.ReadMessage(ctx)
-	_ = topicsugar.JSONUnmarshal(&mess, &v)
+	_ = topicsugar.JSONUnmarshal(mess, &v)
 }
 
 func SimpleGetMessageContentWithoutOptimizations(ctx context.Context, r *topicreader.Reader) {
