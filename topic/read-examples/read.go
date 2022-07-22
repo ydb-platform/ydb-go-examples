@@ -33,14 +33,12 @@ func CreateReader() *topicreader.Reader {
 func CreateReaderWithManyTopics(db ydb.Connection) *topicreader.Reader {
 	r, _ := db.Topic().StartReader("consumer", []topicoptions.ReadSelector{
 		{
-			Path:       "test",
-			Partitions: nil, // по умолчанию - все
-			ReadFrom:   time.Time{},
+			Path: "test",
 		},
 		{
 			Path:       "test-2",
 			Partitions: []int64{1, 2, 3},
-			ReadFrom:   time.Time{},
+			ReadFrom:   time.Date(2022, 7, 1, 10, 15, 0, 0, time.UTC),
 		},
 	},
 	)
