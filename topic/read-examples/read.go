@@ -87,7 +87,7 @@ func SimpleReadJSONMessageOptimized(ctx context.Context, r *topicreader.Reader) 
 
 func SimpleGetMessageContentWithoutOptimizations(ctx context.Context, r *topicreader.Reader) {
 	mess, _ := r.ReadMessage(ctx)
-	content, _ := io.ReadAll(&mess)
+	content, _ := io.ReadAll(mess)
 	fmt.Println(string(content))
 }
 
@@ -155,7 +155,7 @@ func ReadMessageWithBatchCommit(ctx context.Context, db ydb.Connection) {
 	for {
 		mess, _ := r.ReadMessage(ctx)
 		processMessage(mess)
-		_ = r.Commit(ctx, &mess) // will fast - in async mode commit will append to internal buffer only
+		_ = r.Commit(ctx, mess) // will fast - in async mode commit will append to internal buffer only
 	}
 }
 
@@ -213,8 +213,8 @@ func ReadWithOwnReadProgressStorage(ctx context.Context, db ydb.Connection) {
 		processBatch(batch)
 		_ = externalSystemCommit(
 			batch.Context(),
-			batch.PartitionSession().Topic,
-			batch.PartitionSession().PartitionID,
+			batch.Topic(),
+			batch.PartitionID(),
 			batch.EndOffset(),
 		)
 	}
@@ -256,8 +256,8 @@ func ReadWithExplicitPartitionStartStopHandler(ctx context.Context, db ydb.Conne
 		processBatch(batch)
 		_ = externalSystemCommit(
 			batch.Context(),
-			batch.PartitionSession().Topic,
-			batch.PartitionSession().PartitionID,
+			batch.Topic(),
+			batch.PartitionID(),
 			batch.EndOffset(),
 		)
 	}
@@ -313,7 +313,7 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 		batch, _ := r.ReadMessageBatch(readContext)
 
 		processBatch(batch)
-		_ = externalSystemCommit(batch.Context(), batch.PartitionSession().Topic, batch.PartitionSession().PartitionID, batch.EndOffset())
+		_ = externalSystemCommit(batch.Context(), batch.Topic(), batch.PartitionID(), batch.EndOffset())
 		_ = r.Commit(ctx, batch)
 	}
 }
@@ -337,7 +337,7 @@ func ReceiveCommitNotify(db ydb.Connection) {
 	}
 }
 
-func processBatch(batch topicreader.Batch) {
+func processBatch(batch *topicreader.Batch) {
 	ctx := batch.Context() // batch.Context() will cancel if partition revoke by server or connection broke
 	if len(batch.Messages) == 0 {
 		return
@@ -345,13 +345,13 @@ func processBatch(batch topicreader.Batch) {
 
 	buf := &bytes.Buffer{}
 	for _, mess := range batch.Messages {
-		_, _ = buf.ReadFrom(&mess)
+		_, _ = buf.ReadFrom(mess)
 		writeBatchToDB(ctx, batch.Messages[0].WrittenAt, buf.Bytes())
 	}
 }
 
-func processMessage(m topicreader.Message) {
-	body, _ := io.ReadAll(&m)
+func processMessage(m *topicreader.Message) {
+	body, _ := io.ReadAll(m)
 	writeToDB(
 		m.Context(), // m.Context will skip if server revoke partition or connection to server broken
 		m.SeqNo, body)
