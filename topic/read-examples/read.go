@@ -58,16 +58,16 @@ func CreateReaderWithCustomCodec(db ydb.Connection) *topicreader.Reader {
 
 }
 
-func SimpleReadMessages(r *topicreader.Reader) {
+func SimpleReadMessages(ctx context.Context, r *topicreader.Reader) {
 	for {
-		mess, _ := r.ReadMessage(context.TODO())
+		mess, _ := r.ReadMessage(ctx)
 		processMessage(mess)
 	}
 }
 
-func SimpleReadMessagesWithErrorHandle(r *topicreader.Reader) error {
+func SimpleReadMessagesWithErrorHandle(ctx context.Context, r *topicreader.Reader) error {
 	for {
-		mess, err := r.ReadMessage(context.TODO())
+		mess, err := r.ReadMessage(ctx)
 		if err != nil {
 			return err
 		}
@@ -135,10 +135,9 @@ func SimplePrintMessageContent(ctx context.Context, r *topicreader.Reader) {
 	}))
 }
 
-func ReadWithCommitEveryMessage(r *topicreader.Reader) {
+func ReadWithCommitEveryMessage(ctx context.Context, r *topicreader.Reader) {
 	for {
-		mess, _ := r.ReadMessage(context.TODO())
-		mess.Context()
+		mess, _ := r.ReadMessage(ctx)
 		processMessage(mess)
 		_ = r.Commit(mess.Context(), mess)
 	}
@@ -154,39 +153,39 @@ func ReadMessageWithBatchCommit(ctx context.Context, db ydb.Connection) {
 	}()
 
 	for {
-		mess, _ := r.ReadMessage(context.TODO())
+		mess, _ := r.ReadMessage(ctx)
 		processMessage(mess)
 		_ = r.Commit(ctx, &mess) // will fast - in async mode commit will append to internal buffer only
 	}
 }
 
-func ReadBatchesWithBatchCommit(r *topicreader.Reader) {
+func ReadBatchesWithBatchCommit(ctx context.Context, r *topicreader.Reader) {
 	for {
-		batch, _ := r.ReadMessageBatch(context.TODO())
+		batch, _ := r.ReadMessageBatch(ctx)
 		processBatch(batch)
 		_ = r.Commit(batch.Context(), batch)
 	}
 }
 
-func ReadBatchWithMessageCommits(r *topicreader.Reader) {
+func ReadBatchWithMessageCommits(ctx context.Context, r *topicreader.Reader) {
 	for {
-		batch, _ := r.ReadMessageBatch(context.TODO())
+		batch, _ := r.ReadMessageBatch(ctx)
 		for _, mess := range batch.Messages {
 			processMessage(mess)
-			_ = r.Commit(context.TODO(), batch)
+			_ = r.Commit(mess.Context(), batch)
 		}
 	}
 }
 
-func ReadMessagedWithCustomBatching(db ydb.Connection) {
+func ReadMessagedWithCustomBatching(ctx context.Context, db ydb.Connection) {
 	r, _ := db.Topic().StartReader("consumer", nil,
 		topicoptions.WithBatchReadMinCount(1000),
 	)
 
 	for {
-		batch, _ := r.ReadMessageBatch(context.TODO())
+		batch, _ := r.ReadMessageBatch(ctx)
 		processBatch(batch)
-		_ = r.Commit(context.TODO(), batch)
+		_ = r.Commit(batch.Context(), batch)
 	}
 }
 
