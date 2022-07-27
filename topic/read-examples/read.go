@@ -30,7 +30,7 @@ func CreateReader() *topicreader.Reader {
 	return r
 }
 
-func CreateReaderWithManyTopics(db ydb.Connection) *topicreader.Reader {
+func CreateReaderWithManyTopicsAndOptions(db ydb.Connection) *topicreader.Reader {
 	r, _ := db.Topic().StartReader("consumer", []topicoptions.ReadSelector{
 		{
 			Path: "test",
@@ -58,13 +58,6 @@ func CreateReaderWithCustomCodec(db ydb.Connection) *topicreader.Reader {
 
 }
 
-func SimpleReadMessages(ctx context.Context, r *topicreader.Reader) {
-	for {
-		mess, _ := r.ReadMessage(ctx)
-		processMessage(mess)
-	}
-}
-
 func SimpleReadMessagesWithErrorHandle(ctx context.Context, r *topicreader.Reader) error {
 	for {
 		mess, err := r.ReadMessage(ctx)
@@ -83,12 +76,6 @@ func SimpleReadJSONMessageOptimized(ctx context.Context, r *topicreader.Reader) 
 	var v S
 	mess, _ := r.ReadMessage(ctx)
 	_ = topicsugar.JSONUnmarshal(mess, &v)
-}
-
-func SimpleGetMessageContentWithoutOptimizations(ctx context.Context, r *topicreader.Reader) {
-	mess, _ := r.ReadMessage(ctx)
-	content, _ := io.ReadAll(mess)
-	fmt.Println(string(content))
 }
 
 type MyMessage struct {
@@ -123,16 +110,40 @@ func processResults(_ []MyMessage) {
 
 }
 
-func SimplePrintMessageContent(ctx context.Context, r *topicreader.Reader) {
-	type S struct {
-		V int
+func HandlePartitionHardOff(batch *topicreader.Batch) {
+	ctx := batch.Context() // batch.Context() will cancel if partition revoke by server or connection broke
+	if len(batch.Messages) == 0 {
+		return
 	}
 
-	mess, _ := r.ReadMessage(ctx)
-	_ = mess.UnmarshalTo(topicsugar.ConsumeWithCallback(func(data []byte) error {
-		fmt.Println()
-		return nil
-	}))
+	buf := &bytes.Buffer{}
+	for _, mess := range batch.Messages {
+		if ctx.Err() != nil {
+			return
+		}
+		_, _ = buf.ReadFrom(mess)
+		writeBatchToDB(ctx, batch.Messages[0].WrittenAt, buf.Bytes())
+	}
+}
+
+func HandlePartitionSoftOff(ctx context.Context, db ydb.Connection) {
+	r, _ := db.Topic().StartReader("consumer", nil,
+		topicoptions.WithBatchReadMinCount(1000),
+	)
+
+	for {
+		batch, _ := r.ReadMessageBatch(ctx) // <- if partition soft stop batch can be less, then 1000
+		processBatch(batch)
+		_ = r.Commit(batch.Context(), batch)
+	}
+}
+
+func SimplePrintMessageContent(ctx context.Context, r *topicreader.Reader) {
+	for {
+		mess, _ := r.ReadMessage(ctx)
+		content, _ := io.ReadAll(mess)
+		fmt.Println(string(content))
+	}
 }
 
 func ReadWithCommitEveryMessage(ctx context.Context, r *topicreader.Reader) {
@@ -143,7 +154,7 @@ func ReadWithCommitEveryMessage(ctx context.Context, r *topicreader.Reader) {
 	}
 }
 
-func ReadMessageWithBatchCommit(ctx context.Context, db ydb.Connection) {
+func ReadMessagesWithAsyncBufferedCommit(ctx context.Context, db ydb.Connection) {
 	r, _ := db.Topic().StartReader("consumer", nil,
 		topicoptions.WithCommitMode(topicoptions.CommitModeAsync),
 		topicoptions.WithCommitCountTrigger(1000),
@@ -177,7 +188,7 @@ func ReadBatchWithMessageCommits(ctx context.Context, r *topicreader.Reader) {
 	}
 }
 
-func ReadMessagedWithCustomBatching(ctx context.Context, db ydb.Connection) {
+func ReadMessagesWithCustomBatching(ctx context.Context, db ydb.Connection) {
 	r, _ := db.Topic().StartReader("consumer", nil,
 		topicoptions.WithBatchReadMinCount(1000),
 	)
@@ -215,7 +226,7 @@ func ReadWithOwnReadProgressStorage(ctx context.Context, db ydb.Connection) {
 			batch.Context(),
 			batch.Topic(),
 			batch.PartitionID(),
-			batch.EndOffset(),
+			getEndOffset(batch),
 		)
 	}
 }
@@ -258,7 +269,7 @@ func ReadWithExplicitPartitionStartStopHandler(ctx context.Context, db ydb.Conne
 			batch.Context(),
 			batch.Topic(),
 			batch.PartitionID(),
-			batch.EndOffset(),
+			getEndOffset(batch),
 		)
 	}
 }
@@ -313,8 +324,7 @@ func ReadWithExplicitPartitionStartStopHandlerAndOwnReadProgressStorage(ctx cont
 		batch, _ := r.ReadMessageBatch(readContext)
 
 		processBatch(batch)
-		_ = externalSystemCommit(batch.Context(), batch.Topic(), batch.PartitionID(), batch.EndOffset())
-		_ = r.Commit(ctx, batch)
+		_ = externalSystemCommit(batch.Context(), batch.Topic(), batch.PartitionID(), getEndOffset(batch))
 	}
 }
 
@@ -345,8 +355,10 @@ func processBatch(batch *topicreader.Batch) {
 
 	buf := &bytes.Buffer{}
 	for _, mess := range batch.Messages {
+		buf.Reset()
 		_, _ = buf.ReadFrom(mess)
-		writeBatchToDB(ctx, batch.Messages[0].WrittenAt, buf.Bytes())
+		_, _ = io.Copy(buf, mess)
+		writeMessagesToDB(ctx, buf.Bytes())
 	}
 }
 
@@ -386,5 +398,9 @@ func externalSystemUnlock(ctx context.Context, topic string, partition int64) er
 }
 
 func externalSystemCommit(ctx context.Context, topic string, partition int64, offset int64) error {
+	panic("not implemented")
+}
+
+func getEndOffset(b *topicreader.Batch) int64 {
 	panic("not implemented")
 }
