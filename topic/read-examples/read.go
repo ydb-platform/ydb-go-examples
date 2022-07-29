@@ -369,14 +369,6 @@ func processMessage(m *topicreader.Message) {
 		m.SeqNo, body)
 }
 
-func processPartitionedMessages(ctx context.Context, messages []topicreader.Message) {
-	buf := &bytes.Buffer{}
-	for _, msg := range messages {
-		_, _ = buf.ReadFrom(&msg)
-		writeMessagesToDB(ctx, buf.Bytes())
-	}
-}
-
 func writeToDB(ctx context.Context, id int64, body []byte) {
 }
 
