@@ -60,13 +60,13 @@ func main() {
 	}
 
 	for {
-		mess, err := reader.ReadMessage(ctx)
+		msg, err := reader.ReadMessage(ctx)
 		if err != nil {
 			panic(fmt.Errorf("failed to read message", err))
 		}
 
 		var event interface{}
-		err = topicsugar.JSONUnmarshal(mess, &event)
+		err = topicsugar.JSONUnmarshal(msg, &event)
 		if err != nil {
 			panic(fmt.Errorf("failed to unmarshal json cdc", err))
 		}

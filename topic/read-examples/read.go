@@ -60,11 +60,11 @@ func CreateReaderWithCustomCodec(db ydb.Connection) *topicreader.Reader {
 
 func SimpleReadMessagesWithErrorHandle(ctx context.Context, r *topicreader.Reader) error {
 	for {
-		mess, err := r.ReadMessage(ctx)
+		msg, err := r.ReadMessage(ctx)
 		if err != nil {
 			return err
 		}
-		processMessage(mess)
+		processMessage(msg)
 	}
 }
 
@@ -74,8 +74,8 @@ func SimpleReadJSONMessageOptimized(ctx context.Context, r *topicreader.Reader) 
 	}
 
 	var v S
-	mess, _ := r.ReadMessage(ctx)
-	_ = topicsugar.JSONUnmarshal(mess, &v)
+	msg, _ := r.ReadMessage(ctx)
+	_ = topicsugar.JSONUnmarshal(msg, &v)
 }
 
 type MyMessage struct {
@@ -117,11 +117,11 @@ func HandlePartitionHardOff(batch *topicreader.Batch) {
 	}
 
 	buf := &bytes.Buffer{}
-	for _, mess := range batch.Messages {
+	for _, msg := range batch.Messages {
 		if ctx.Err() != nil {
 			return
 		}
-		_, _ = buf.ReadFrom(mess)
+		_, _ = buf.ReadFrom(msg)
 		writeBatchToDB(ctx, batch.Messages[0].WrittenAt, buf.Bytes())
 	}
 }
@@ -140,17 +140,17 @@ func HandlePartitionSoftOff(ctx context.Context, db ydb.Connection) {
 
 func SimplePrintMessageContent(ctx context.Context, r *topicreader.Reader) {
 	for {
-		mess, _ := r.ReadMessage(ctx)
-		content, _ := io.ReadAll(mess)
+		msg, _ := r.ReadMessage(ctx)
+		content, _ := io.ReadAll(msg)
 		fmt.Println(string(content))
 	}
 }
 
 func ReadWithCommitEveryMessage(ctx context.Context, r *topicreader.Reader) {
 	for {
-		mess, _ := r.ReadMessage(ctx)
-		processMessage(mess)
-		_ = r.Commit(mess.Context(), mess)
+		msg, _ := r.ReadMessage(ctx)
+		processMessage(msg)
+		_ = r.Commit(msg.Context(), msg)
 	}
 }
 
@@ -164,9 +164,9 @@ func ReadMessagesWithAsyncBufferedCommit(ctx context.Context, db ydb.Connection)
 	}()
 
 	for {
-		mess, _ := r.ReadMessage(ctx)
-		processMessage(mess)
-		_ = r.Commit(ctx, mess) // will fast - in async mode commit will append to internal buffer only
+		msg, _ := r.ReadMessage(ctx)
+		processMessage(msg)
+		_ = r.Commit(ctx, msg) // will fast - in async mode commit will append to internal buffer only
 	}
 }
 
@@ -181,9 +181,9 @@ func ReadBatchesWithBatchCommit(ctx context.Context, r *topicreader.Reader) {
 func ReadBatchWithMessageCommits(ctx context.Context, r *topicreader.Reader) {
 	for {
 		batch, _ := r.ReadMessageBatch(ctx)
-		for _, mess := range batch.Messages {
-			processMessage(mess)
-			_ = r.Commit(mess.Context(), batch)
+		for _, msg := range batch.Messages {
+			processMessage(msg)
+			_ = r.Commit(msg.Context(), batch)
 		}
 	}
 }
@@ -342,8 +342,8 @@ func ReceiveCommitNotify(db ydb.Connection) {
 	)
 
 	for {
-		mess, _ := r.ReadMessage(ctx)
-		processMessage(mess)
+		msg, _ := r.ReadMessage(ctx)
+		processMessage(msg)
 	}
 }
 
@@ -354,10 +354,10 @@ func processBatch(batch *topicreader.Batch) {
 	}
 
 	buf := &bytes.Buffer{}
-	for _, mess := range batch.Messages {
+	for _, msg := range batch.Messages {
 		buf.Reset()
-		_, _ = buf.ReadFrom(mess)
-		_, _ = io.Copy(buf, mess)
+		_, _ = buf.ReadFrom(msg)
+		_, _ = io.Copy(buf, msg)
 		writeMessagesToDB(ctx, buf.Bytes())
 	}
 }
@@ -371,8 +371,8 @@ func processMessage(m *topicreader.Message) {
 
 func processPartitionedMessages(ctx context.Context, messages []topicreader.Message) {
 	buf := &bytes.Buffer{}
-	for _, mess := range messages {
-		_, _ = buf.ReadFrom(&mess)
+	for _, msg := range messages {
+		_, _ = buf.ReadFrom(&msg)
 		writeMessagesToDB(ctx, buf.Bytes())
 	}
 }
