@@ -2,9 +2,12 @@ package topicreaderexamples
 
 import (
 	"context"
+	"encoding/binary"
+	"errors"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicreader"
 )
 
 // ReadMessagesWithCustomBatching example of custom of readed message batch
@@ -18,6 +21,31 @@ func ReadMessagesWithCustomBatching(ctx context.Context, db ydb.Connection) {
 		processBatch(batch.Context(), batch)
 		_ = reader.Commit(batch.Context(), batch)
 	}
+}
+
+// MyMessage example type with own serialization
+type MyMessage struct {
+	ID         byte
+	ChangeType byte
+	Delta      uint32
+}
+
+// UnmarshalYDBTopicMessage implements topicreader.MessageContentUnmarshaler interface
+func (m *MyMessage) UnmarshalYDBTopicMessage(data []byte) error {
+	if len(data) != 6 {
+		return errors.New("bad data len")
+	}
+	m.ID = data[0]
+	m.ChangeType = data[1]
+	m.Delta = binary.BigEndian.Uint32(data[2:])
+	return nil
+}
+
+// UnmarshalMessageContentToOwnType is example about effective unmarshal own format from message content
+func UnmarshalMessageContentToOwnType(ctx context.Context, reader *topicreader.Reader) {
+	var v MyMessage
+	mess, _ := reader.ReadMessage(ctx)
+	_ = mess.UnmarshalTo(&v)
 }
 
 // ProcessMessagesWithSyncCommit example about guarantee wait for commit accepted by server
