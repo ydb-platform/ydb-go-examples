@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/ydb-platform/ydb-go-genproto/protos/Ydb"
+	firestore "google.golang.org/genproto/firestore/bundle"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicreader"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicsugar"
@@ -44,7 +44,7 @@ func UnmarshalMessageContentToJSONStruct(msg *topicreader.Message) {
 
 // UnmarshalMessageContentToProtobufStruct is example for effective way for unmarshal protobuf message content to value
 func UnmarshalMessageContentToProtobufStruct(msg *topicreader.Message) {
-	v := &Ydb.Value{} // protobuf type
+	v := &firestore.BundledDocumentMetadata{} // protobuf type
 
 	_ = topicsugar.ProtoUnmarshal(msg, v)
 }
