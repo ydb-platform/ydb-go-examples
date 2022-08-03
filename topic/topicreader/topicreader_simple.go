@@ -5,10 +5,14 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/ydb-platform/ydb-go-genproto/protos/Ydb"
+
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicreader"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicsugar"
 )
 
+// PrintMessageContent is simple example for easy start read messages
+// it is not recommend way for heavy-load processing, batch processing usually will faster
 func PrintMessageContent(ctx context.Context, reader *topicreader.Reader) {
 	for {
 		msg, _ := reader.ReadMessage(ctx)
@@ -18,6 +22,16 @@ func PrintMessageContent(ctx context.Context, reader *topicreader.Reader) {
 	}
 }
 
+// ReadMessagesByBatch it is recommended way for process messages
+func ReadMessagesByBatch(ctx context.Context, reader *topicreader.Reader) {
+	for {
+		batch, _ := reader.ReadMessageBatch(ctx)
+		processBatch(batch.Context(), batch)
+		_ = reader.Commit(batch.Context(), batch)
+	}
+}
+
+// UnmarshalMessageContentToJSONStruct is example for effective way for unmarshal json message content to value
 func UnmarshalMessageContentToJSONStruct(msg *topicreader.Message) {
 	type S struct {
 		MyField int `json:"my_field"`
@@ -26,4 +40,11 @@ func UnmarshalMessageContentToJSONStruct(msg *topicreader.Message) {
 	var v S
 
 	_ = topicsugar.JSONUnmarshal(msg, &v)
+}
+
+// UnmarshalMessageContentToProtobufStruct is example for effective way for unmarshal protobuf message content to value
+func UnmarshalMessageContentToProtobufStruct(msg *topicreader.Message) {
+	v := &Ydb.Value{} // protobuf type
+
+	_ = topicsugar.ProtoUnmarshal(msg, v)
 }

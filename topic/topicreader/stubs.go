@@ -6,11 +6,11 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicreader"
 )
 
-func getEndOffset(b *topicreader.Batch) int64 {
+func getEndOffset(b *topicreader.Batch) int64 { //nolint:unused
 	panic("example stub")
 }
 
-func externalSystemCommit(ctx context.Context, topic string, partition int64, offset int64) error {
+func externalSystemCommit(ctx context.Context, topic string, partition int64, offset int64) error { //nolint:unused
 	panic("example stub")
 }
 
