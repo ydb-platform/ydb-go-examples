@@ -1,0 +1,128 @@
+package topicreaderexamples
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
+	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
+)
+
+// CommitNotify is example for receive commit notifications with async commit mode
+func CommitNotify(ctx context.Context, db ydb.Connection) {
+	reader, _ := db.Topic().StartReader("consumer", topicoptions.ReadTopic("asd"),
+		topicoptions.WithTracer(trace.Topic{
+			OnPartitionCommittedNotify: func(info trace.OnPartitionCommittedInfo) {
+				// called when receive commit notify from server
+				fmt.Println(info.Topic, info.PartitionID, info.CommittedOffset)
+			},
+		},
+		),
+	)
+
+	for {
+		msg, _ := reader.ReadMessage(ctx)
+		processMessage(msg.Context(), msg)
+	}
+}
+
+// ExplicitPartitionStartStopHandler is example for create own handler for stop partition event from server
+func ExplicitPartitionStartStopHandler(ctx context.Context, db ydb.Connection) {
+	readContext, stopReader := context.WithCancel(context.Background())
+	defer stopReader()
+
+	reader, _ := db.Topic().StartReader("consumer", topicoptions.ReadTopic("asd"),
+		topicoptions.WithTracer(
+			trace.Topic{
+				OnPartitionReadStart: func(info trace.OnPartitionReadStartInfo) {
+					err := externalSystemLock(info.PartitionContext, info.Topic, info.PartitionID)
+					if err != nil {
+						stopReader()
+					}
+				},
+				OnPartitionReadStop: func(info trace.OnPartitionReadStopInfo) {
+					if info.Graceful {
+						err := externalSystemUnlock(ctx, info.Topic, info.PartitionID)
+						if err != nil {
+							stopReader()
+						}
+					}
+				},
+			},
+		),
+	)
+
+	go func() {
+		<-readContext.Done()
+		_ = reader.Close(ctx)
+	}()
+
+	for {
+		batch, _ := reader.ReadMessageBatch(readContext)
+
+		processBatch(batch.Context(), batch)
+		_ = externalSystemCommit(
+			batch.Context(),
+			batch.Topic(),
+			batch.PartitionID(),
+			getEndOffset(batch),
+		)
+	}
+}
+
+// PartitionStartStopHandlerAndOwnReadProgressStorage example of complex use explicit start/stop partition handler
+// and own progress storage in external system
+func PartitionStartStopHandlerAndOwnReadProgressStorage(ctx context.Context, db ydb.Connection) {
+	readContext, stopReader := context.WithCancel(context.Background())
+	defer stopReader()
+
+	readStartPosition := func(
+		ctx context.Context,
+		req topicoptions.GetPartitionStartOffsetRequest,
+	) (res topicoptions.GetPartitionStartOffsetResponse, err error) {
+		offset, err := readLastOffsetFromDB(ctx, req.Topic, req.PartitionID)
+		res.StartFrom(offset)
+
+		// Reader will stop if return err != nil
+		return res, err
+	}
+
+	onPartitionStart := func(info trace.OnPartitionReadStartInfo) {
+		err := externalSystemLock(info.PartitionContext, info.Topic, info.PartitionID)
+		if err != nil {
+			stopReader()
+		}
+	}
+
+	onPartitionStop := func(info trace.OnPartitionReadStopInfo) {
+		if info.Graceful {
+			err := externalSystemUnlock(ctx, info.Topic, info.PartitionID)
+			if err != nil {
+				stopReader()
+			}
+		}
+	}
+
+	r, _ := db.Topic().StartReader("consumer", topicoptions.ReadTopic("asd"),
+
+		topicoptions.WithGetPartitionStartOffset(readStartPosition),
+		topicoptions.WithTracer(
+			trace.Topic{
+				OnPartitionReadStart: onPartitionStart,
+				OnPartitionReadStop:  onPartitionStop,
+			},
+		),
+	)
+	go func() {
+		<-readContext.Done()
+		_ = r.Close(ctx)
+	}()
+
+	for {
+		batch, _ := r.ReadMessageBatch(readContext)
+
+		processBatch(batch.Context(), batch)
+		_ = externalSystemCommit(batch.Context(), batch.Topic(), batch.PartitionID(), getEndOffset(batch))
+	}
+}
