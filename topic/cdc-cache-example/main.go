@@ -13,7 +13,8 @@ import (
 )
 
 var (
-	port                = flag.Int("port", 3619, "port to listen")
+	host                = flag.String("listen-host", "localhost", "host/ip for start listener")
+	port                = flag.Int("port", 3619, "port to listen, 0 mean auto")
 	cacheTimeout        = flag.Duration("cache-timeout", time.Second*15, "cache timeout")
 	enableCDC           = flag.Bool("cdc", true, "enable cdc")
 	cdcLoadOnStart      = flag.Duration("cdc-load-time", time.Second, "Load cdc history on start")
@@ -37,7 +38,10 @@ func main() {
 		newServer(1, db, *cacheTimeout),
 		//newServer(2, db, *cacheTimeout),
 	)
-	err = http.ListenAndServe(":"+strconv.Itoa(*port), handler)
+
+	addr := *host + ":" + strconv.Itoa(*port)
+	log.Printf("Start listen http://%s\n", addr)
+	err = http.ListenAndServe(addr, handler)
 	if errors.Is(err, http.ErrServerClosed) {
 		log.Fatalf("failed to listen and serve: %+v", err)
 	}

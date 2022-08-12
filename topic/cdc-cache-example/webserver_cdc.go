@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"io"
 	"log"
 	"strconv"
 	"time"
@@ -11,7 +10,6 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicsugar"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
-	"github.com/ydb-platform/ydb-go-sdk/v3/trace"
 )
 
 func (s *dbServer) dropFromCache(id string) {
@@ -36,16 +34,7 @@ func (s *dbServer) cdcLoop() {
 			Path:     "articles/updates",
 			ReadFrom: time.Now().Add(*cdcLoadOnStart),
 		},
-	}, topicoptions.WithTracer(trace.Topic{
-		OnReadStreamRawSent: func(info trace.OnReadStreamRawSentInfo) {
-			data, _ := io.ReadAll(info.ClientMessage.JSONData())
-			log.Println("sent: ", string(data))
-		},
-		OnReadStreamRawReceived: func(info trace.OnReadStreamRawReceivedInfo) {
-			data, _ := io.ReadAll(info.ServerMessage.JSONData())
-			log.Println("received: ", string(data))
-		},
-	}),
+	},
 	)
 	if err != nil {
 		log.Fatalf("failed to start reader: %+v", err)
