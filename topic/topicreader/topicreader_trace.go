@@ -12,8 +12,8 @@ import (
 // CommitNotify is example for receive commit notifications with async commit mode
 func CommitNotify(ctx context.Context, db ydb.Connection) {
 	reader, _ := db.Topic().StartReader("consumer", topicoptions.ReadTopic("asd"),
-		topicoptions.WithTracer(trace.Topic{
-			OnPartitionCommittedNotify: func(info trace.OnPartitionCommittedInfo) {
+		topicoptions.WithReaderTrace(trace.Topic{
+			OnReaderCommittedNotify: func(info trace.TopicReaderCommittedNotifyInfo) {
 				// called when receive commit notify from server
 				fmt.Println(info.Topic, info.PartitionID, info.CommittedOffset)
 			},
@@ -33,21 +33,31 @@ func ExplicitPartitionStartStopHandler(ctx context.Context, db ydb.Connection) {
 	defer stopReader()
 
 	reader, _ := db.Topic().StartReader("consumer", topicoptions.ReadTopic("asd"),
-		topicoptions.WithTracer(
+		topicoptions.WithReaderTrace(
 			trace.Topic{
-				OnPartitionReadStart: func(info trace.OnPartitionReadStartInfo) {
+				OnReaderPartitionReadStartResponse: func(
+					info trace.TopicReaderPartitionReadStartResponseStartInfo,
+				) func(
+					trace.TopicReaderPartitionReadStartResponseDoneInfo,
+				) {
 					err := externalSystemLock(info.PartitionContext, info.Topic, info.PartitionID)
 					if err != nil {
 						stopReader()
 					}
+					return nil
 				},
-				OnPartitionReadStop: func(info trace.OnPartitionReadStopInfo) {
+				OnReaderPartitionReadStopResponse: func(
+					info trace.TopicReaderPartitionReadStopResponseStartInfo,
+				) func(
+					trace.TopicReaderPartitionReadStopResponseDoneInfo,
+				) {
 					if info.Graceful {
 						err := externalSystemUnlock(ctx, info.Topic, info.PartitionID)
 						if err != nil {
 							stopReader()
 						}
 					}
+					return nil
 				},
 			},
 		),
@@ -88,29 +98,39 @@ func PartitionStartStopHandlerAndOwnReadProgressStorage(ctx context.Context, db 
 		return res, err
 	}
 
-	onPartitionStart := func(info trace.OnPartitionReadStartInfo) {
+	onPartitionStart := func(
+		info trace.TopicReaderPartitionReadStartResponseStartInfo,
+	) func(
+		trace.TopicReaderPartitionReadStartResponseDoneInfo,
+	) {
 		err := externalSystemLock(info.PartitionContext, info.Topic, info.PartitionID)
 		if err != nil {
 			stopReader()
 		}
+		return nil
 	}
 
-	onPartitionStop := func(info trace.OnPartitionReadStopInfo) {
+	onPartitionStop := func(
+		info trace.TopicReaderPartitionReadStopResponseStartInfo,
+	) func(
+		trace.TopicReaderPartitionReadStopResponseDoneInfo,
+	) {
 		if info.Graceful {
 			err := externalSystemUnlock(ctx, info.Topic, info.PartitionID)
 			if err != nil {
 				stopReader()
 			}
 		}
+		return nil
 	}
 
 	r, _ := db.Topic().StartReader("consumer", topicoptions.ReadTopic("asd"),
 
 		topicoptions.WithGetPartitionStartOffset(readStartPosition),
-		topicoptions.WithTracer(
+		topicoptions.WithReaderTrace(
 			trace.Topic{
-				OnPartitionReadStart: onPartitionStart,
-				OnPartitionReadStop:  onPartitionStop,
+				OnReaderPartitionReadStartResponse: onPartitionStart,
+				OnReaderPartitionReadStopResponse:  onPartitionStop,
 			},
 		),
 	)
