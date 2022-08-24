@@ -134,6 +134,7 @@ func selectDefault(ctx context.Context, db *sql.DB, prefix string) (err error) {
 func selectScan(ctx context.Context, db *sql.DB, prefix string) (err error) {
 	query := `
 		PRAGMA TablePathPrefix("` + prefix + `");
+		PRAGMA AnsiInForEmptyOrNullableItemsCollections;
 
 		DECLARE $seasonsTitle AS Utf8;
 		DECLARE $seriesTitle AS Utf8;
