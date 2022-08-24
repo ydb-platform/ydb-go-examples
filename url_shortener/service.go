@@ -7,7 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"hash/fnv"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"regexp"
@@ -373,7 +373,7 @@ func (s *service) handleShorten(w http.ResponseWriter, r *http.Request) {
 			"success": successToString(err == nil),
 		}).Add(1)
 	}()
-	url, err = ioutil.ReadAll(r.Body)
+	url, err = io.ReadAll(r.Body)
 	if err != nil {
 		writeResponse(w, http.StatusInternalServerError, err.Error())
 		return

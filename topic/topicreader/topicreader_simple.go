@@ -3,7 +3,7 @@ package topicreaderexamples
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 
 	firestore "google.golang.org/genproto/firestore/bundle"
 
@@ -16,7 +16,7 @@ import (
 func PrintMessageContent(ctx context.Context, reader *topicreader.Reader) {
 	for {
 		msg, _ := reader.ReadMessage(ctx)
-		content, _ := ioutil.ReadAll(msg)
+		content, _ := io.ReadAll(msg)
 		fmt.Println(string(content))
 		_ = reader.Commit(msg.Context(), msg)
 	}
