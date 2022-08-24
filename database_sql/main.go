@@ -162,7 +162,7 @@ func selectScan(ctx context.Context, db *sql.DB, prefix string) (err error) {
 		if err = row.Scan(&ast, &plan); err != nil {
 			return err
 		}
-		log.Printf("AST = %s\n\nPlan = %s", ast, plan)
+		//log.Printf("AST = %s\n\nPlan = %s", ast, plan)
 		return nil
 	}, retry.WithDoRetryOptions(retry.WithIdempotent(true)))
 
