@@ -301,7 +301,7 @@ func fillTablesWithData(ctx context.Context, db *sql.DB, prefix string) (err err
 	`
 	series, seasonsData, episodesData := getData()
 	err = retry.DoTx(ctx, db, func(ctx context.Context, tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, query,
+		if _, err = tx.ExecContext(ctx, query,
 			sql.Named("seriesData", types.ListValue(series...)),
 			sql.Named("seasonsData", types.ListValue(seasonsData...)),
 			sql.Named("episodesData", types.ListValue(episodesData...)),
