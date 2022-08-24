@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -90,12 +91,12 @@ func main() {
 
 	err = selectDefault(ctx, db, prefix)
 	if err != nil {
-		log.Fatalf("select simple error: %v", err)
+		log.Fatal(err)
 	}
 
 	err = selectScan(ctx, db, prefix)
 	if err != nil {
-		log.Fatalf("scan query select error: %v", err)
+		log.Fatal(err)
 	}
 }
 
@@ -105,7 +106,7 @@ func selectDefault(ctx context.Context, db *sql.DB, prefix string) (err error) {
 
 		SELECT series_id, title, release_date FROM series;
 	`
-	return retry.Do(ydb.WithTxControl(ctx, table.OnlineReadOnlyTxControl()), db, func(ctx context.Context, cc *sql.Conn) (err error) {
+	err = retry.Do(ydb.WithTxControl(ctx, table.OnlineReadOnlyTxControl()), db, func(ctx context.Context, cc *sql.Conn) (err error) {
 		rows, err := cc.QueryContext(ctx, query)
 		if err != nil {
 			return err
@@ -130,6 +131,10 @@ func selectDefault(ctx context.Context, db *sql.DB, prefix string) (err error) {
 		}
 		return rows.Err()
 	}, retry.WithDoRetryOptions(retry.WithIdempotent(true)))
+	if err != nil {
+		return fmt.Errorf("execute data query `%s` failed: %w", strings.ReplaceAll(query, "\n", `\n`), err)
+	}
+	return nil
 }
 
 func selectScan(ctx context.Context, db *sql.DB, prefix string) (err error) {
@@ -155,7 +160,7 @@ func selectScan(ctx context.Context, db *sql.DB, prefix string) (err error) {
 			) AND air_date BETWEEN $from AND $to;
 	`
 	// explain of query
-	_ = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) (err error) {
+	err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) (err error) {
 		row := cc.QueryRowContext(ydb.WithQueryMode(ctx, ydb.ExplainQueryMode), query)
 		var (
 			ast  string
@@ -167,9 +172,12 @@ func selectScan(ctx context.Context, db *sql.DB, prefix string) (err error) {
 		//log.Printf("AST = %s\n\nPlan = %s", ast, plan)
 		return nil
 	}, retry.WithDoRetryOptions(retry.WithIdempotent(true)))
+	if err != nil {
+		return fmt.Errorf("explain query `%s` failed: %w", strings.ReplaceAll(query, "\n", `\n`), err)
+	}
 
 	// scan query
-	return retry.Do(ydb.WithTxControl(ctx, table.StaleReadOnlyTxControl()), db, func(ctx context.Context, cc *sql.Conn) (err error) {
+	err = retry.Do(ydb.WithTxControl(ctx, table.StaleReadOnlyTxControl()), db, func(ctx context.Context, cc *sql.Conn) (err error) {
 		rows, err := cc.QueryContext(ydb.WithQueryMode(ctx, ydb.ScanQueryMode), query,
 			sql.Named("seriesTitle", "%IT Crowd%"),
 			sql.Named("seasonsTitle", "%Season 1%"),
@@ -199,6 +207,10 @@ func selectScan(ctx context.Context, db *sql.DB, prefix string) (err error) {
 		}
 		return rows.Err()
 	}, retry.WithDoRetryOptions(retry.WithIdempotent(true)))
+	if err != nil {
+		return fmt.Errorf("scan query `%s` failed: %w", strings.ReplaceAll(query, "\n", `\n`), err)
+	}
+	return nil
 }
 
 func fillTablesWithData(ctx context.Context, db *sql.DB, prefix string) (err error) {
