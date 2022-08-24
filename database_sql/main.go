@@ -71,6 +71,9 @@ func main() {
 	defer cancel()
 
 	cc, err := ydb.Unwrap(db)
+	if err != nil {
+		log.Fatalf("unwrap failed: %v", err)
+	}
 
 	prefix = path.Join(cc.Name(), prefix)
 
@@ -297,7 +300,7 @@ func fillTablesWithData(ctx context.Context, db *sql.DB, prefix string) (err err
 		FROM AS_TABLE($episodesData);
 	`
 	series, seasonsData, episodesData := getData()
-	return retry.DoTx(ctx, db, func(ctx context.Context, tx *sql.Tx) error {
+	err = retry.DoTx(ctx, db, func(ctx context.Context, tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, query,
 			sql.Named("seriesData", types.ListValue(series...)),
 			sql.Named("seasonsData", types.ListValue(seasonsData...)),
@@ -307,11 +310,15 @@ func fillTablesWithData(ctx context.Context, db *sql.DB, prefix string) (err err
 		}
 		return nil
 	}, retry.WithDoTxRetryOptions(retry.WithIdempotent(true)))
+	if err != nil {
+		return fmt.Errorf("upsert query `%s` failed: %w", strings.ReplaceAll(query, "\n", `\n`), err)
+	}
+	return nil
 }
 
 func prepareSchema(ctx context.Context, db *sql.DB, prefix string) (err error) {
-	if err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) error {
-		_, err := cc.ExecContext(
+	err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) error {
+		_, err = cc.ExecContext(
 			ydb.WithQueryMode(ctx, ydb.SchemeQueryMode),
 			fmt.Sprintf("DROP TABLE `%s`", path.Join(prefix, "series")),
 		)
@@ -339,10 +346,11 @@ func prepareSchema(ctx context.Context, db *sql.DB, prefix string) (err error) {
 			return err
 		}
 		return nil
-	}, retry.WithDoRetryOptions(retry.WithIdempotent(true))); err != nil {
-		return err
+	}, retry.WithDoRetryOptions(retry.WithIdempotent(true)))
+	if err != nil {
+		return fmt.Errorf("create table failed: %w", err)
 	}
-	if err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) error {
+	err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) error {
 		_, err = cc.ExecContext(
 			ydb.WithQueryMode(ctx, ydb.SchemeQueryMode),
 			fmt.Sprintf("DROP TABLE `%s`", path.Join(prefix, "seasons")),
@@ -373,10 +381,11 @@ func prepareSchema(ctx context.Context, db *sql.DB, prefix string) (err error) {
 			return err
 		}
 		return nil
-	}, retry.WithDoRetryOptions(retry.WithIdempotent(true))); err != nil {
-		return err
+	}, retry.WithDoRetryOptions(retry.WithIdempotent(true)))
+	if err != nil {
+		return fmt.Errorf("create table failed: %w", err)
 	}
-	if err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) error {
+	err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) error {
 		_, err = cc.ExecContext(
 			ydb.WithQueryMode(ctx, ydb.SchemeQueryMode),
 			fmt.Sprintf("DROP TABLE `%s`", path.Join(prefix, "episodes")),
@@ -407,10 +416,10 @@ func prepareSchema(ctx context.Context, db *sql.DB, prefix string) (err error) {
 			fmt.Fprintf(os.Stderr, "create episodes table failed: %v", err)
 			return err
 		}
-
 		return nil
-	}, retry.WithDoRetryOptions(retry.WithIdempotent(true))); err != nil {
-		return err
+	}, retry.WithDoRetryOptions(retry.WithIdempotent(true)))
+	if err != nil {
+		return fmt.Errorf("create table failed: %w", err)
 	}
 	return nil
 }
