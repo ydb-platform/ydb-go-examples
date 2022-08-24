@@ -14,7 +14,7 @@ require (
 	github.com/ydb-platform/ydb-go-sdk-auth-environ v0.1.2
 	github.com/ydb-platform/ydb-go-sdk-prometheus v0.11.10
 	github.com/ydb-platform/ydb-go-sdk-zerolog v0.12.2
-	github.com/ydb-platform/ydb-go-sdk/v3 v3.36.0
+	github.com/ydb-platform/ydb-go-sdk/v3 v3.36.1
 	github.com/ydb-platform/ydb-go-yc v0.9.1
 	github.com/ydb-platform/ydb-go-yc-metadata v0.5.3 // indirect
 	golang.org/x/net v0.0.0-20220822230855-b0a4917ee28c // indirect
