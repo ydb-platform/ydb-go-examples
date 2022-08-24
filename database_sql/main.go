@@ -106,6 +106,22 @@ func selectDefault(ctx context.Context, db *sql.DB, prefix string) (err error) {
 
 		SELECT series_id, title, release_date FROM series;
 	`
+	// explain of query
+	err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) (err error) {
+		row := cc.QueryRowContext(ydb.WithQueryMode(ctx, ydb.ExplainQueryMode), query)
+		var (
+			ast  string
+			plan string
+		)
+		if err = row.Scan(&ast, &plan); err != nil {
+			return err
+		}
+		//log.Printf("AST = %s\n\nPlan = %s", ast, plan)
+		return nil
+	}, retry.WithDoRetryOptions(retry.WithIdempotent(true)))
+	if err != nil {
+		return fmt.Errorf("explain query `%s` failed: %w", strings.ReplaceAll(query, "\n", `\n`), err)
+	}
 	err = retry.Do(ydb.WithTxControl(ctx, table.OnlineReadOnlyTxControl()), db, func(ctx context.Context, cc *sql.Conn) (err error) {
 		rows, err := cc.QueryContext(ctx, query)
 		if err != nil {
@@ -138,49 +154,81 @@ func selectDefault(ctx context.Context, db *sql.DB, prefix string) (err error) {
 }
 
 func selectScan(ctx context.Context, db *sql.DB, prefix string) (err error) {
+	seriesIDsQuery := `
+		PRAGMA TablePathPrefix("` + prefix + `");
+
+		DECLARE $seriesTitle AS Utf8;
+
+		SELECT 			series_id 		
+		FROM 			series
+		WHERE 			title LIKE $seriesTitle;
+	`
+	seasonIDsQuery := `
+		PRAGMA TablePathPrefix("` + prefix + `");
+
+		DECLARE $seasonTitle AS Utf8;
+
+		SELECT 			season_id 		
+		FROM 			seasons
+		WHERE 			title LIKE $seasonTitle
+	`
 	query := `
 		PRAGMA TablePathPrefix("` + prefix + `");
 		PRAGMA AnsiInForEmptyOrNullableItemsCollections;
 
-		DECLARE $seasonsTitle AS Utf8;
-		DECLARE $seriesTitle AS Utf8;
+		DECLARE $seasonIDs AS List<Bytes>;
+		DECLARE $seriesIDs AS List<Bytes>;
 		DECLARE $from AS Date;
 		DECLARE $to AS Date;
 
-		SELECT episode_id, title, air_date FROM episodes
+		SELECT 
+			episode_id, title, air_date FROM episodes
 		WHERE 	
-			series_id IN (
-				SELECT 			series_id 		
-				FROM 			series
-				WHERE 			title LIKE $seriesTitle
-			) AND season_id IN (
-				SELECT 			season_id 		
-				FROM 			seasons
-				WHERE 			title LIKE $seasonsTitle
-			) AND air_date BETWEEN $from AND $to;
+			series_id IN $seriesIDs 
+			AND season_id IN $seasonIDs 
+			AND air_date BETWEEN $from AND $to;
 	`
-	// explain of query
-	err = retry.Do(ctx, db, func(ctx context.Context, cc *sql.Conn) (err error) {
-		row := cc.QueryRowContext(ydb.WithQueryMode(ctx, ydb.ExplainQueryMode), query)
-		var (
-			ast  string
-			plan string
-		)
-		if err = row.Scan(&ast, &plan); err != nil {
-			return err
-		}
-		//log.Printf("AST = %s\n\nPlan = %s", ast, plan)
-		return nil
-	}, retry.WithDoRetryOptions(retry.WithIdempotent(true)))
-	if err != nil {
-		return fmt.Errorf("explain query `%s` failed: %w", strings.ReplaceAll(query, "\n", `\n`), err)
-	}
-
 	// scan query
 	err = retry.Do(ydb.WithTxControl(ctx, table.StaleReadOnlyTxControl()), db, func(ctx context.Context, cc *sql.Conn) (err error) {
-		rows, err := cc.QueryContext(ydb.WithQueryMode(ctx, ydb.ScanQueryMode), query,
+		var (
+			id        string
+			seriesIDs []types.Value
+			seasonIDs []types.Value
+		)
+		// getting series ID's
+		row := cc.QueryRowContext(ydb.WithQueryMode(ctx, ydb.ScanQueryMode), seriesIDsQuery,
 			sql.Named("seriesTitle", "%IT Crowd%"),
-			sql.Named("seasonsTitle", "%Season 1%"),
+		)
+		if err = row.Scan(&id); err != nil {
+			return err
+		}
+		seriesIDs = append(seriesIDs, types.BytesValueFromString(id))
+		if err = row.Err(); err != nil {
+			return err
+		}
+
+		// getting season ID's
+		rows, err := cc.QueryContext(ydb.WithQueryMode(ctx, ydb.ScanQueryMode), seasonIDsQuery,
+			sql.Named("seasonTitle", "%Season 1%"),
+		)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			if err = rows.Scan(&id); err != nil {
+				return err
+			}
+			seasonIDs = append(seasonIDs, types.BytesValueFromString(id))
+		}
+		if err = rows.Err(); err != nil {
+			return err
+		}
+		_ = rows.Close()
+
+		// getting final query result
+		rows, err = cc.QueryContext(ydb.WithQueryMode(ctx, ydb.ScanQueryMode), query,
+			sql.Named("seriesIDs", types.ListValue(seriesIDs...)),
+			sql.Named("seasonIDs", types.ListValue(seasonIDs...)),
 			sql.Named("from", date("2006-01-01")),
 			sql.Named("to", date("2006-12-31")),
 		)
