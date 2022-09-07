@@ -59,7 +59,7 @@ func selectPaging(
 			_, res, err := s.Execute(ctx, readTx, query,
 				table.NewQueryParameters(
 					table.ValueParam("$limit", types.Uint64Value(uint64(limit))),
-					table.ValueParam("$lastCity", types.UTF8Value(*lastCity)),
+					table.ValueParam("$lastCity", types.TextValue(*lastCity)),
 					table.ValueParam("$lastNumber", types.Uint32Value(uint32(*lastNum))),
 				),
 			)

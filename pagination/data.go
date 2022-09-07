@@ -6,9 +6,9 @@ import (
 
 func schoolData(city string, num uint32, addr string) types.Value {
 	return types.StructValue(
-		types.StructFieldValue("city", types.UTF8Value(city)),
+		types.StructFieldValue("city", types.TextValue(city)),
 		types.StructFieldValue("number", types.Uint32Value(num)),
-		types.StructFieldValue("address", types.UTF8Value(addr)),
+		types.StructFieldValue("address", types.TextValue(addr)),
 	)
 }
 

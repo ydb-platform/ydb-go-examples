@@ -74,11 +74,11 @@ func writeLogBatch(ctx context.Context, c table.Client, tablePath string, logs [
 
 			for _, msg := range logs {
 				rows = append(rows, types.StructValue(
-					types.StructFieldValue("App", types.UTF8Value(msg.App)),
-					types.StructFieldValue("Host", types.UTF8Value(msg.Host)),
+					types.StructFieldValue("App", types.TextValue(msg.App)),
+					types.StructFieldValue("Host", types.TextValue(msg.Host)),
 					types.StructFieldValue("Timestamp", types.TimestampValueFromTime(msg.Timestamp)),
 					types.StructFieldValue("HTTPCode", types.Uint32Value(msg.HTTPCode)),
-					types.StructFieldValue("Message", types.UTF8Value(msg.Message)),
+					types.StructFieldValue("Message", types.TextValue(msg.Message)),
 				))
 			}
 

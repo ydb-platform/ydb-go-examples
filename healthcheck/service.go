@@ -176,10 +176,10 @@ func (s *service) saveCodes(ctx context.Context, codes *sync.Map) (err error) {
 							writeTx,
 							query,
 							table.NewQueryParameters(
-								table.ValueParam("$url", types.UTF8Value(url.(string))),
+								table.ValueParam("$url", types.TextValue(url.(string))),
 								table.ValueParam("$code", types.Int32Value(int32(res.code))),
 								table.ValueParam("$ts", types.DatetimeValueFromTime(time.Now())),
-								table.ValueParam("$error", types.UTF8Value(res.err)),
+								table.ValueParam("$error", types.TextValue(res.err)),
 							),
 						)
 						return err

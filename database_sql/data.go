@@ -13,13 +13,13 @@ func seriesData(id string, released time.Time, title, info, comment string) type
 	if comment == "" {
 		commentv = types.NullValue(types.TypeUTF8)
 	} else {
-		commentv = types.OptionalValue(types.UTF8Value(comment))
+		commentv = types.OptionalValue(types.TextValue(comment))
 	}
 	return types.StructValue(
 		types.StructFieldValue("series_id", types.BytesValueFromString(id)),
 		types.StructFieldValue("release_date", types.DateValueFromTime(released)),
-		types.StructFieldValue("title", types.UTF8Value(title)),
-		types.StructFieldValue("series_info", types.UTF8Value(info)),
+		types.StructFieldValue("title", types.TextValue(title)),
+		types.StructFieldValue("series_info", types.TextValue(info)),
 		types.StructFieldValue("comment", commentv),
 	)
 }
@@ -28,7 +28,7 @@ func seasonData(seriesID, seasonID string, title string, first, last time.Time) 
 	return types.StructValue(
 		types.StructFieldValue("series_id", types.BytesValueFromString(seriesID)),
 		types.StructFieldValue("season_id", types.BytesValueFromString(seasonID)),
-		types.StructFieldValue("title", types.UTF8Value(title)),
+		types.StructFieldValue("title", types.TextValue(title)),
 		types.StructFieldValue("first_aired", types.DateValueFromTime(first)),
 		types.StructFieldValue("last_aired", types.DateValueFromTime(last)),
 	)
@@ -39,7 +39,7 @@ func episodeData(seriesID, seasonID, episodeID string, title string, date time.T
 		types.StructFieldValue("series_id", types.BytesValueFromString(seriesID)),
 		types.StructFieldValue("season_id", types.BytesValueFromString(seasonID)),
 		types.StructFieldValue("episode_id", types.BytesValueFromString(episodeID)),
-		types.StructFieldValue("title", types.UTF8Value(title)),
+		types.StructFieldValue("title", types.TextValue(title)),
 		types.StructFieldValue("air_date", types.DateValueFromTime(date)),
 	)
 }
