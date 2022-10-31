@@ -4,13 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"sync/atomic"
 	"time"
-
-	"github.com/allegro/bigcache/v3"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
@@ -18,35 +15,21 @@ import (
 )
 
 type dbServer struct {
-	cache        *bigcache.BigCache
+	cache        *Cache
 	cacheEnabled bool
 	db           ydb.Connection
 	dbCounter    int64
 	id           int
 }
 
-func newServer(id int, db ydb.Connection, cacheTimeout time.Duration, logCacheRemoved bool) *dbServer {
-	cacheCfg := bigcache.DefaultConfig(cacheTimeout)
-
-	if logCacheRemoved {
-		cacheCfg.OnRemoveWithReason = func(key string, entry []byte, reason bigcache.RemoveReason) {
-			log.Printf("cache removed with from server '%v' reason %v for id: %v", id, reason, key)
-		}
-	}
-
-	cache, err := bigcache.NewBigCache(cacheCfg)
-	if err != nil {
-		panic(err)
-	}
-
+func newServer(id int, db ydb.Connection, cacheTimeout time.Duration) *dbServer {
 	res := &dbServer{
-		cache:        cache,
-		cacheEnabled: cacheTimeout > 0,
-		db:           db,
-		id:           id,
+		cache: NewCache(cacheTimeout),
+		db:    db,
+		id:    id,
 	}
 
-	if *enableCDC {
+	if !*disableCDC {
 		go res.cdcLoop()
 	}
 
@@ -54,83 +37,125 @@ func newServer(id int, db ydb.Connection, cacheTimeout time.Duration, logCacheRe
 }
 
 func (s *dbServer) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	switch request.Method {
+	case http.MethodGet:
+		s.GetHandler(writer, request)
+	case http.MethodPost:
+		s.PostHandler(writer, request)
+	default:
+		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *dbServer) GetHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 	id := strings.TrimPrefix(request.URL.Path, "/")
-	if id == "" {
-		id = "index"
-	}
 
 	start := time.Now()
-	text, err := s.getContent(ctx, id)
+	freeSeats, err := s.getFreeSeats(ctx, id)
 	if err != nil {
 		http.Error(writer, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	duration := time.Since(start)
-	_, _ = fmt.Fprintf(writer, "Duration: %v\n\n%v", duration, text)
+	s.writeAnswer(writer, freeSeats, duration)
 }
 
-func (s *dbServer) getContent(ctx context.Context, id string) (string, error) {
-	if content, ok := s.getContentFromCache(id); ok {
+func (s *dbServer) PostHandler(writer http.ResponseWriter, request *http.Request) {
+	ctx := request.Context()
+	id := strings.TrimPrefix(request.URL.Path, "/")
+
+	start := time.Now()
+	freeSeats, err := s.sellTicket(ctx, id)
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// s.cache.Delete(id)
+	duration := time.Since(start)
+	s.writeAnswer(writer, freeSeats, duration)
+}
+
+func (s *dbServer) writeAnswer(writer http.ResponseWriter, freeSeats int64, duration time.Duration) {
+	_, _ = fmt.Fprintf(writer, "%v\n\nDuration: %v\n", freeSeats, duration)
+}
+
+func (s *dbServer) getFreeSeats(ctx context.Context, id string) (int64, error) {
+	if content, ok := s.cache.Get(id); ok {
 		return content, nil
 	}
 
-	content, err := s.getContentFromDB(ctx, id)
+	freeSeats, err := s.getContentFromDB(ctx, id)
 
 	if err == nil {
-		s.storeInCache(id, content)
+		s.cache.Set(id, freeSeats)
 	}
 
-	return content, err
+	return freeSeats, err
 }
 
-func (s *dbServer) getContentFromDB(ctx context.Context, id string) (string, error) {
+func (s *dbServer) getContentFromDB(ctx context.Context, id string) (int64, error) {
 	atomic.AddInt64(&s.dbCounter, 1)
 	var freeSeats int64
 	err := s.db.Table().DoTx(ctx, func(ctx context.Context, tx table.TransactionActor) error {
-		res, err := tx.Execute(ctx, `
+		var err error
+		freeSeats, err = s.getFreeSeatsTx(ctx, tx, id)
+		return err
+	})
+
+	return freeSeats, err
+}
+
+func (s *dbServer) getFreeSeatsTx(ctx context.Context, tx table.TransactionActor, id string) (int64, error) {
+	var freeSeats int64
+	res, err := tx.Execute(ctx, `
 DECLARE $id AS Utf8;
 
 SELECT freeSeats FROM bus WHERE id=$id;
 `, table.NewQueryParameters(table.ValueParam("$id", types.UTF8Value(id))))
+	if err != nil {
+		return 0, err
+	}
+
+	err = res.NextResultSetErr(ctx, "freeSeats")
+	if err != nil {
+		return 0, err
+	}
+
+	if !res.NextRow() {
+		freeSeats = 0
+		return 0, errors.New("not found")
+	}
+
+	err = res.ScanWithDefaults(&freeSeats)
+	if err != nil {
+		return 0, err
+	}
+
+	return freeSeats, nil
+}
+
+func (s *dbServer) sellTicket(ctx context.Context, id string) (int64, error) {
+	var freeSeats int64
+	err := s.db.Table().DoTx(ctx, func(ctx context.Context, tx table.TransactionActor) error {
+		var err error
+		freeSeats, err = s.getFreeSeatsTx(ctx, tx, id)
 		if err != nil {
 			return err
 		}
-
-		err = res.NextResultSetErr(ctx, "freeSeats")
-		if err != nil {
-			return err
+		if freeSeats < 0 {
+			return errors.New("not enough free seats")
 		}
 
-		if !res.NextRow() {
-			freeSeats = 0
-			return errors.New("not found")
-		}
+		_, err = tx.Execute(ctx, `
+DECLARE $id AS Utf8;
 
-		err = res.ScanWithDefaults(&freeSeats)
-		if err != nil {
-			return err
-		}
-
-		return nil
+UPDATE bus SET freeSeats = freeSeats - 1 WHERE id=$id;
+`, table.NewQueryParameters(table.ValueParam("$id", types.UTF8Value(id))))
+		return err
 	})
-
-	return fmt.Sprint(freeSeats), err
-}
-
-func (s *dbServer) getContentFromCache(id string) (content string, ok bool) {
-	if !s.cacheEnabled {
-		return "", false
+	if err == nil {
+		freeSeats--
 	}
-	contentS, err := s.cache.Get(id)
-	content = string(contentS)
-	return content, err == nil
-}
-
-func (s *dbServer) storeInCache(id, content string) {
-	if !s.cacheEnabled {
-		return
-	}
-	log.Printf("server id: %v store cache for article: %v ('%v')", s.id, id, content)
-	_ = s.cache.Set(id, []byte(content))
+	return freeSeats, err
 }

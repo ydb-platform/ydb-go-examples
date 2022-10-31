@@ -18,10 +18,9 @@ const defaultConnectionString = "grpc://localhost:2136/local"
 var (
 	host                = flag.String("listen-host", "localhost", "host/ip for start listener")
 	port                = flag.Int("port", 3619, "port to listen")
-	cacheTimeout        = flag.Duration("cache-timeout", 0, "cache timeout, 0 mean disabled")
-	cacheLogRemoved     = flag.Bool("cache-log-removed", false, "log cache removed")
-	enableCDC           = flag.Bool("cdc", false, "enable cdc")
-	skipCreateTable     = flag.Bool("skip-create-tables", false, "skip create tables")
+	cacheTimeout        = flag.Duration("cache", time.Second*10, "cache timeout, 0 mean disable cache")
+	disableCDC          = flag.Bool("disable-cdc", false, "disable cdc")
+	skipCreateTable     = flag.Bool("skip-init", false, "skip recreate table and topic")
 	ydbConnectionString = flag.String("ydb-connection-string", "", "ydb connection string, default "+defaultConnectionString)
 	ydbToken            = flag.String("ydb-token", "", "Auth token for ydb")
 	backendCount        = flag.Int("backend-count", 1, "count of backend servers")
@@ -34,15 +33,12 @@ func main() {
 	db := connect()
 
 	if !*skipCreateTable {
-		err := createTables(ctx, db)
-		if err != nil {
-			log.Fatalf("failed to create tables: %+v", err)
-		}
+		createTableAndCDC(ctx, db, *backendCount)
 	}
 
 	servers := make([]http.Handler, *backendCount)
 	for i := 0; i < *backendCount; i++ {
-		servers[i] = newServer(i, db, *cacheTimeout, *cacheLogRemoved)
+		servers[i] = newServer(i, db, *cacheTimeout)
 	}
 	log.Printf("servers count: %v", len(servers))
 	handler := newBalancer(servers...)
