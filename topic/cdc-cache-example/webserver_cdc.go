@@ -19,10 +19,9 @@ func (s *dbServer) dropFromCache(id string) {
 func (s *dbServer) cdcLoop() {
 	ctx := context.Background()
 	consumer := "consumer-" + strconv.Itoa(s.id)
-	err := s.db.Topic().Alter(ctx, "articles/updates", topicoptions.AlterWithAddConsumers(topictypes.Consumer{
+	err := s.db.Topic().Alter(ctx, "bus/updates", topicoptions.AlterWithAddConsumers(topictypes.Consumer{
 		Name: consumer,
 	}))
-
 	if err != nil {
 		if !ydb.IsOperationErrorAlreadyExistsError(err) {
 			log.Fatalf("failed to add consumer: %+v", err)
@@ -31,8 +30,8 @@ func (s *dbServer) cdcLoop() {
 
 	reader, err := s.db.Topic().StartReader(consumer, topicoptions.ReadSelectors{
 		{
-			Path:     "articles/updates",
-			ReadFrom: time.Now().Add(*cdcLoadOnStart),
+			Path:     "bus/updates",
+			ReadFrom: time.Now(),
 		},
 	},
 	)
@@ -59,8 +58,8 @@ func (s *dbServer) cdcLoop() {
 			log.Fatalf("failed to unmarshal message: %+v", err)
 		}
 
-		articleID := cdcEvent.Key[0]
-		//s.dropFromCache(articleID)
-		s.storeInCache(articleID, cdcEvent.Update.Text)
+		busID := cdcEvent.Key[0]
+		// s.dropFromCache(articleID)
+		s.storeInCache(busID, cdcEvent.Update.Text)
 	}
 }
