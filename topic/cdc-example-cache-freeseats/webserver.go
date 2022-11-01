@@ -49,6 +49,7 @@ func (s *dbServer) ServeHTTP(writer http.ResponseWriter, request *http.Request) 
 	}
 }
 
+// GetHandler return free seats
 func (s *dbServer) GetHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 	id := strings.TrimPrefix(request.URL.Path, "/")
@@ -63,6 +64,7 @@ func (s *dbServer) GetHandler(writer http.ResponseWriter, request *http.Request)
 	s.writeAnswer(writer, freeSeats, duration)
 }
 
+// PostHandler sell seats from bus id
 func (s *dbServer) PostHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 	id := strings.TrimPrefix(request.URL.Path, "/")
