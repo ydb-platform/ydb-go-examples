@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 const defaultConnectionString = "grpc://localhost:2136/local"
@@ -13,7 +14,7 @@ const defaultConnectionString = "grpc://localhost:2136/local"
 var (
 	host                = flag.String("listen-host", "localhost", "host/ip for start listener")
 	port                = flag.Int("port", 3619, "port to listen")
-	cacheTimeout        = flag.Duration("cache", 0, "cache timeout, 0 mean disable cache")
+	cacheTimeout        = flag.Duration("cache", time.Second*10, "cache timeout, 0 mean disable cache")
 	ydbConnectionString = flag.String("ydb-connection-string", "", "ydb connection string, default "+defaultConnectionString)
 	ydbToken            = flag.String("ydb-token", "", "Auth token for ydb")
 )
