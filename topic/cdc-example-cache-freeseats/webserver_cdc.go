@@ -9,11 +9,11 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicsugar"
 )
 
-func (s *dbServer) dropFromCache(id string) {
+func (s *server) dropFromCache(id string) {
 	s.cache.Delete(id)
 }
 
-func (s *dbServer) cdcLoop() {
+func (s *server) cdcLoop() {
 	ctx := context.Background()
 	consumer := consumerName(s.id)
 	reader, err := s.db.Topic().StartReader(consumer, topicoptions.ReadSelectors{

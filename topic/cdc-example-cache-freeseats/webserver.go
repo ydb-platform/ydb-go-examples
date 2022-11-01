@@ -17,15 +17,15 @@ import (
 
 var errNotEnthoughtFreeSeats = errors.New("not enough free seats")
 
-type dbServer struct {
+type server struct {
 	cache     *Cache
 	db        ydb.Connection
 	dbCounter int64
 	id        int
 }
 
-func newServer(id int, db ydb.Connection, cacheTimeout time.Duration, useCDC bool) *dbServer {
-	res := &dbServer{
+func newServer(id int, db ydb.Connection, cacheTimeout time.Duration, useCDC bool) *server {
+	res := &server{
 		cache: NewCache(cacheTimeout),
 		db:    db,
 		id:    id,
@@ -38,7 +38,7 @@ func newServer(id int, db ydb.Connection, cacheTimeout time.Duration, useCDC boo
 	return res
 }
 
-func (s *dbServer) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+func (s *server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	switch request.Method {
 	case http.MethodGet:
 		if request.URL.Path == "/" {
@@ -53,7 +53,7 @@ func (s *dbServer) ServeHTTP(writer http.ResponseWriter, request *http.Request) 
 	}
 }
 
-func (s *dbServer) GetHandler(writer http.ResponseWriter, request *http.Request) {
+func (s *server) GetHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 	id := strings.TrimPrefix(request.URL.Path, "/")
 
@@ -67,7 +67,7 @@ func (s *dbServer) GetHandler(writer http.ResponseWriter, request *http.Request)
 	s.writeAnswer(writer, freeSeats, duration)
 }
 
-func (s *dbServer) PostHandler(writer http.ResponseWriter, request *http.Request) {
+func (s *server) PostHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
 	id := strings.TrimPrefix(request.URL.Path, "/")
 
@@ -86,11 +86,11 @@ func (s *dbServer) PostHandler(writer http.ResponseWriter, request *http.Request
 	s.writeAnswer(writer, freeSeats, duration)
 }
 
-func (s *dbServer) writeAnswer(writer http.ResponseWriter, freeSeats int64, duration time.Duration) {
+func (s *server) writeAnswer(writer http.ResponseWriter, freeSeats int64, duration time.Duration) {
 	_, _ = fmt.Fprintf(writer, "%v\n\nDuration: %v\n", freeSeats, duration)
 }
 
-func (s *dbServer) getFreeSeats(ctx context.Context, id string) (int64, error) {
+func (s *server) getFreeSeats(ctx context.Context, id string) (int64, error) {
 	if content, ok := s.cache.Get(id); ok {
 		return content, nil
 	}
@@ -104,7 +104,7 @@ func (s *dbServer) getFreeSeats(ctx context.Context, id string) (int64, error) {
 	return freeSeats, err
 }
 
-func (s *dbServer) getContentFromDB(ctx context.Context, id string) (int64, error) {
+func (s *server) getContentFromDB(ctx context.Context, id string) (int64, error) {
 	atomic.AddInt64(&s.dbCounter, 1)
 	var freeSeats int64
 	err := s.db.Table().DoTx(ctx, func(ctx context.Context, tx table.TransactionActor) error {
@@ -116,7 +116,7 @@ func (s *dbServer) getContentFromDB(ctx context.Context, id string) (int64, erro
 	return freeSeats, err
 }
 
-func (s *dbServer) getFreeSeatsTx(ctx context.Context, tx table.TransactionActor, id string) (int64, error) {
+func (s *server) getFreeSeatsTx(ctx context.Context, tx table.TransactionActor, id string) (int64, error) {
 	var freeSeats int64
 	res, err := tx.Execute(ctx, `
 DECLARE $id AS Utf8;
@@ -145,7 +145,7 @@ SELECT freeSeats FROM bus WHERE id=$id;
 	return freeSeats, nil
 }
 
-func (s *dbServer) sellTicket(ctx context.Context, id string) (int64, error) {
+func (s *server) sellTicket(ctx context.Context, id string) (int64, error) {
 	var freeSeats int64
 	err := s.db.Table().DoTx(ctx, func(ctx context.Context, tx table.TransactionActor) error {
 		var err error
@@ -170,7 +170,7 @@ UPDATE bus SET freeSeats = freeSeats - 1 WHERE id=$id;
 	return freeSeats, err
 }
 
-func (s *dbServer) IndexPageHandler(writer http.ResponseWriter, request *http.Request) {
+func (s *server) IndexPageHandler(writer http.ResponseWriter, request *http.Request) {
 	_, _ = io.WriteString(writer, `Use requests:
 GET /1 - for get tickets for bus 1
 GET /2A - for get tickets for bus 2A
