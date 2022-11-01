@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"path"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/table"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 )
@@ -23,9 +25,18 @@ func createTableAndCDC(ctx context.Context, db ydb.Connection, consumersCount in
 }
 
 func createTables(ctx context.Context, db ydb.Connection) error {
-	_, err := db.Scripting().Execute(ctx, `
-DROP TABLE bus;
+	err := db.Table().Do(ctx, func(ctx context.Context, s table.Session) error {
+		err := s.DropTable(ctx, path.Join(db.Name(), "bus"))
+		if ydb.IsOperationErrorSchemeError(err) {
+			err = nil
+		}
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("failed to drop table: %w", err)
+	}
 
+	_, err = db.Scripting().Execute(ctx, `
 CREATE TABLE bus (id Utf8, freeSeats Int64, PRIMARY KEY(id));
 
 ALTER TABLE 

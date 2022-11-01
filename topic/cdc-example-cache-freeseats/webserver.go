@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -40,7 +41,11 @@ func newServer(id int, db ydb.Connection, cacheTimeout time.Duration) *dbServer 
 func (s *dbServer) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	switch request.Method {
 	case http.MethodGet:
-		s.GetHandler(writer, request)
+		if request.URL.Path == "/" {
+			s.IndexPageHandler(writer, request)
+		} else {
+			s.GetHandler(writer, request)
+		}
 	case http.MethodPost:
 		s.PostHandler(writer, request)
 	default:
@@ -163,4 +168,13 @@ UPDATE bus SET freeSeats = freeSeats - 1 WHERE id=$id;
 		freeSeats--
 	}
 	return freeSeats, err
+}
+
+func (s *dbServer) IndexPageHandler(writer http.ResponseWriter, request *http.Request) {
+	_, _ = io.WriteString(writer, `Use requests:
+GET /1 - for get tickets for bus 1
+GET /2A - for get tickets for bus 2A
+POST /1 - for sell ticket for bus 1
+POST /2A - for sell ticket for bus 2A
+`)
 }

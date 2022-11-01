@@ -48,8 +48,12 @@ func (s *dbServer) cdcLoop() {
 		}
 
 		busID := cdcEvent.Key[0]
-		s.dropFromCache(busID)
-		// s.cache.Set(busID, cdcEvent.Update.FreeSeats)
+		// s.dropFromCache(busID) // used for clean cache and force database request
+		s.cache.Set(busID, cdcEvent.Update.FreeSeats) // used for direct update cache from cdc without database request
+		err = reader.Commit(ctx, msg)
+		if err != nil {
+			log.Printf("failed to commit message: %+v", err)
+		}
 	}
 }
 

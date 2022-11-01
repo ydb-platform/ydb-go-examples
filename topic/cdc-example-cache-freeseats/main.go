@@ -59,6 +59,9 @@ func connect() ydb.Connection {
 	if *ydbConnectionString != "" {
 		connectionString = *ydbConnectionString
 	}
+	if connectionString == "" {
+		connectionString = defaultConnectionString
+	}
 
 	token := os.Getenv("YDB_TOKEN")
 	if *ydbToken != "" {
