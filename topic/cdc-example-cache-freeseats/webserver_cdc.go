@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -55,8 +54,4 @@ func (s *dbServer) cdcLoop() {
 			log.Printf("failed to commit message: %+v", err)
 		}
 	}
-}
-
-func consumerName(index int) string {
-	return fmt.Sprintf("consumer-%v", index)
 }

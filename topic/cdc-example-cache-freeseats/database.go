@@ -106,3 +106,7 @@ func connect() ydb.Connection {
 	log.Printf("connected to database")
 	return db
 }
+
+func consumerName(index int) string {
+	return fmt.Sprintf("consumer-%v", index)
+}
