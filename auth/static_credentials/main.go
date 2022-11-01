@@ -7,16 +7,16 @@ import (
 	"os"
 
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
-	yc "github.com/ydb-platform/ydb-go-yc"
 )
 
 var (
-	dsn    string
-	saFile string
+	dsn      string
+	user     string
+	password string
 )
 
 func init() {
-	required := []string{"ydb", "sa-file"}
+	required := []string{"ydb", "user", "password"}
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	flagSet.Usage = func() {
 		out := flagSet.Output()
@@ -28,9 +28,13 @@ func init() {
 		"ydb", "",
 		"YDB connection string",
 	)
-	flagSet.StringVar(&saFile,
-		"sa-file", "",
-		"service account key file",
+	flagSet.StringVar(&user,
+		"user", "",
+		"username",
+	)
+	flagSet.StringVar(&password,
+		"password", "",
+		"password",
 	)
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		flagSet.Usage()
@@ -54,8 +58,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	db, err := ydb.Open(ctx, dsn,
-		yc.WithInternalCA(),
-		yc.WithServiceAccountKeyFileCredentials(saFile),
+		ydb.WithStaticCredentials(user, password),
 	)
 	if err != nil {
 		panic(err)

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"time"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
@@ -14,9 +13,8 @@ import (
 )
 
 var (
-	dsn         string
-	prefix      string
-	dialTimeout time.Duration
+	dsn    string
+	prefix string
 )
 
 func init() {
@@ -35,10 +33,6 @@ func init() {
 	flagSet.StringVar(&prefix,
 		"prefix", "",
 		"tables prefix",
-	)
-	flagSet.DurationVar(&dialTimeout,
-		"dial-timeout", 5*time.Second,
-		"dial timeout",
 	)
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		flagSet.Usage()
@@ -64,14 +58,7 @@ func main() {
 	opts := []ydb.Option{
 		environ.WithEnvironCredentials(ctx),
 	}
-	if dialTimeout > 0 {
-		opts = append(opts, ydb.WithDialTimeout(dialTimeout))
-	}
-	db, err := ydb.Open(
-		ctx,
-		dsn,
-		opts...,
-	)
+	db, err := ydb.Open(ctx, dsn, opts...)
 	if err != nil {
 		panic(fmt.Errorf("connect error: %w", err))
 	}

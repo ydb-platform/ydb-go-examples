@@ -166,7 +166,7 @@ func readDocument(ctx context.Context, c table.Client, prefix, url string) error
 		ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			_, res, err := s.Execute(ctx, readTx, query, table.NewQueryParameters(
-				table.ValueParam("$url", types.UTF8Value(url)),
+				table.ValueParam("$url", types.TextValue(url)),
 			))
 			if err != nil {
 				return err
@@ -232,8 +232,8 @@ func addDocument(ctx context.Context, c table.Client, prefix, url, html string, 
 		ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			_, _, err = s.Execute(ctx, writeTx, query, table.NewQueryParameters(
-				table.ValueParam("$url", types.UTF8Value(url)),
-				table.ValueParam("$html", types.UTF8Value(html)),
+				table.ValueParam("$url", types.TextValue(url)),
+				table.ValueParam("$html", types.TextValue(html)),
 				table.ValueParam("$timestamp", types.Uint64Value(timestamp)),
 			))
 			return err

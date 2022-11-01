@@ -7,7 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"hash/fnv"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"regexp"
@@ -236,8 +236,8 @@ func (s *service) insertShort(ctx context.Context, url string) (h string, err er
 		func(ctx context.Context, s table.Session) (err error) {
 			_, _, err = s.Execute(ctx, writeTx, query,
 				table.NewQueryParameters(
-					table.ValueParam("$hash", types.UTF8Value(h)),
-					table.ValueParam("$src", types.UTF8Value(url)),
+					table.ValueParam("$hash", types.TextValue(h)),
+					table.ValueParam("$src", types.TextValue(url)),
 				),
 				options.WithCollectStatsModeBasic(),
 			)
@@ -277,7 +277,7 @@ func (s *service) selectLong(ctx context.Context, hash string) (url string, err 
 		func(ctx context.Context, s table.Session) (err error) {
 			_, res, err = s.Execute(ctx, readTx, query,
 				table.NewQueryParameters(
-					table.ValueParam("$hash", types.UTF8Value(hash)),
+					table.ValueParam("$hash", types.TextValue(hash)),
 				),
 				options.WithCollectStatsModeBasic(),
 			)
@@ -373,7 +373,7 @@ func (s *service) handleShorten(w http.ResponseWriter, r *http.Request) {
 			"success": successToString(err == nil),
 		}).Add(1)
 	}()
-	url, err = ioutil.ReadAll(r.Body)
+	url, err = io.ReadAll(r.Body)
 	if err != nil {
 		writeResponse(w, http.StatusInternalServerError, err.Error())
 		return

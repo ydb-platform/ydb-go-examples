@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path"
 
-	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
-	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
 )
 
@@ -53,47 +54,44 @@ func init() {
 }
 
 func main() {
+	db, err := sql.Open("ydb", dsn)
+	if err != nil {
+		log.Fatalf("connect error: %v", err)
+	}
+	defer func() { _ = db.Close() }()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	db, err := ydb.Open(ctx, dsn,
-		environ.WithEnvironCredentials(ctx),
-	)
 
+	cc, err := ydb.Unwrap(db)
 	if err != nil {
-		panic(fmt.Errorf("connect error: %w", err))
-	}
-	defer func() { _ = db.Close(ctx) }()
-
-	err = sugar.RemoveRecursive(ctx, db, prefix)
-	if err != nil {
-		panic(err)
-	}
-	err = sugar.MakeRecursive(ctx, db, prefix)
-	if err != nil {
-		panic(err)
+		log.Fatalf("unwrap failed: %v", err)
 	}
 
-	prefix = path.Join(db.Name(), prefix)
+	prefix = path.Join(cc.Name(), prefix)
 
-	err = createTable(ctx, db.Table(), path.Join(prefix, "schools"))
+	err = sugar.RemoveRecursive(ctx, cc, prefix)
 	if err != nil {
-		panic(fmt.Errorf("create tables error: %w", err))
+		log.Fatalf("remove recursive failed: %v", err)
 	}
 
-	err = fillTableWithData(ctx, db.Table(), prefix)
+	err = prepareSchema(ctx, db, prefix)
 	if err != nil {
-		panic(fmt.Errorf("fill tables with data error: %w", err))
+		log.Fatalf("create tables error: %v", err)
 	}
 
-	var lastNum uint
-	lastCity := ""
-	limit := 3
-	maxPages := 10
-	for i, empty := 0, false; i < maxPages && !empty; i++ {
-		fmt.Printf("> Page %v:\n", i+1)
-		empty, err = selectPaging(ctx, db.Table(), prefix, limit, &lastNum, &lastCity)
-		if err != nil {
-			panic(fmt.Errorf("get page %v error: %w", i, err))
-		}
+	err = fillTablesWithData(ctx, db, prefix)
+	if err != nil {
+		log.Fatalf("fill tables with data error: %v", err)
+	}
+
+	err = selectDefault(ctx, db, prefix)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = selectScan(ctx, db, prefix)
+	if err != nil {
+		log.Fatal(err)
 	}
 }

@@ -76,9 +76,7 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	db, err := ydb.Open(
-		ctx,
-		dsn,
+	db, err := ydb.Open(ctx, dsn,
 		environ.WithEnvironCredentials(ctx),
 	)
 	if err != nil {

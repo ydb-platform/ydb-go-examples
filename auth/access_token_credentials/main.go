@@ -52,9 +52,7 @@ func init() {
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	db, err := ydb.Open(
-		ctx,
-		dsn,
+	db, err := ydb.Open(ctx, dsn,
 		ydb.WithAccessTokenCredentials(token),
 	)
 	if err != nil {

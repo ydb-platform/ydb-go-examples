@@ -112,27 +112,29 @@ func readTable(ctx context.Context, c table.Client, path string) (err error) {
 	if err := res.Err(); err != nil {
 		return err
 	}
-	stats := res.Stats()
-	for i := 0; ; i++ {
-		phase, ok := stats.NextPhase()
-		if !ok {
-			break
-		}
-		log.Printf(
-			"# phase #%d: took %s",
-			i, phase.Duration(),
-		)
-		for {
-			tbl, ok := phase.NextTableAccess()
+	if stats := res.Stats(); stats != nil {
+		for i := 0; ; i++ {
+			phase, ok := stats.NextPhase()
 			if !ok {
 				break
 			}
 			log.Printf(
-				"#  accessed %s: read=(%drows, %dbytes)",
-				tbl.Name, tbl.Reads.Rows, tbl.Reads.Bytes,
+				"# phase #%d: took %s",
+				i, phase.Duration(),
 			)
+			for {
+				tbl, ok := phase.NextTableAccess()
+				if !ok {
+					break
+				}
+				log.Printf(
+					"#  accessed %s: read=(%drows, %dbytes)",
+					tbl.Name, tbl.Reads.Rows, tbl.Reads.Bytes,
+				)
+			}
 		}
 	}
+
 	return res.Err()
 }
 

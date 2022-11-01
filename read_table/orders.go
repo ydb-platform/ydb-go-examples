@@ -133,7 +133,7 @@ func order(customerID uint64, orderID uint64, description string, date string) t
 		types.StructFieldValue("customer_id", types.Uint64Value(customerID)),
 		types.StructFieldValue("order_id", types.Uint64Value(orderID)),
 		types.StructFieldValue("order_date", types.DateValueFromTime(orderDate)),
-		types.StructFieldValue("description", types.UTF8Value(description)),
+		types.StructFieldValue("description", types.TextValue(description)),
 	)
 }
 
