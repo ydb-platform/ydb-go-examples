@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"path"
+	"time"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/table"
@@ -71,4 +73,36 @@ func createCosumers(ctx context.Context, db ydb.Connection, consumersCount int) 
 	}
 
 	return nil
+}
+
+func connect() ydb.Connection {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	connectionString := os.Getenv("YDB_CONNECTION_STRING")
+	if *ydbConnectionString != "" {
+		connectionString = *ydbConnectionString
+	}
+	if connectionString == "" {
+		connectionString = defaultConnectionString
+	}
+
+	token := os.Getenv("YDB_TOKEN")
+	if *ydbToken != "" {
+		token = *ydbToken
+	}
+	var ydbOptions []ydb.Option
+	if token != "" {
+		ydbOptions = append(ydbOptions, ydb.WithAccessTokenCredentials(token))
+	}
+
+	if *ydbToken != "" {
+		ydbOptions = append(ydbOptions, ydb.WithAccessTokenCredentials(*ydbToken))
+	}
+	db, err := ydb.Open(ctx, connectionString, ydbOptions...)
+	if err != nil {
+		log.Fatalf("failed to create to ydb: %+v", err)
+	}
+	log.Printf("connected to database")
+	return db
 }

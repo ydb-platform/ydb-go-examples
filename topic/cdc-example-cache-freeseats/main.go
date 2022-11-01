@@ -6,11 +6,8 @@ import (
 	"flag"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
-
-	"github.com/ydb-platform/ydb-go-sdk/v3"
 )
 
 const defaultConnectionString = "grpc://localhost:2136/local"
@@ -37,8 +34,9 @@ func main() {
 	}
 
 	servers := make([]http.Handler, *backendCount)
+	cdcEnabled := !*disableCDC
 	for i := 0; i < *backendCount; i++ {
-		servers[i] = newServer(i, db, *cacheTimeout)
+		servers[i] = newServer(i, db, *cacheTimeout, cdcEnabled)
 	}
 	log.Printf("servers count: %v", len(servers))
 	handler := newBalancer(servers...)
@@ -49,36 +47,4 @@ func main() {
 	if errors.Is(err, http.ErrServerClosed) {
 		log.Fatalf("failed to listen and serve: %+v", err)
 	}
-}
-
-func connect() ydb.Connection {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
-	connectionString := os.Getenv("YDB_CONNECTION_STRING")
-	if *ydbConnectionString != "" {
-		connectionString = *ydbConnectionString
-	}
-	if connectionString == "" {
-		connectionString = defaultConnectionString
-	}
-
-	token := os.Getenv("YDB_TOKEN")
-	if *ydbToken != "" {
-		token = *ydbToken
-	}
-	var ydbOptions []ydb.Option
-	if token != "" {
-		ydbOptions = append(ydbOptions, ydb.WithAccessTokenCredentials(token))
-	}
-
-	if *ydbToken != "" {
-		ydbOptions = append(ydbOptions, ydb.WithAccessTokenCredentials(*ydbToken))
-	}
-	db, err := ydb.Open(ctx, connectionString, ydbOptions...)
-	if err != nil {
-		log.Fatalf("failed to create to ydb: %+v", err)
-	}
-	log.Printf("connected to database")
-	return db
 }

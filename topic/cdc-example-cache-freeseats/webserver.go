@@ -24,14 +24,14 @@ type dbServer struct {
 	id        int
 }
 
-func newServer(id int, db ydb.Connection, cacheTimeout time.Duration) *dbServer {
+func newServer(id int, db ydb.Connection, cacheTimeout time.Duration, useCDC bool) *dbServer {
 	res := &dbServer{
 		cache: NewCache(cacheTimeout),
 		db:    db,
 		id:    id,
 	}
 
-	if !*disableCDC {
+	if useCDC {
 		go res.cdcLoop()
 	}
 
