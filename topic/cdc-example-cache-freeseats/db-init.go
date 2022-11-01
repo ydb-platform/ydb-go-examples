@@ -44,7 +44,7 @@ WITH (
 UPSERT INTO bus (id, freeSeats) VALUES ("", 0), ("1", 40), ("2A", 60);
 `, nil)
 	if err != nil {
-		return fmt.Errorf("failed insert pages: %w", err)
+		return fmt.Errorf("failed insert rows: %w", err)
 	}
 	return nil
 }

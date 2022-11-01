@@ -14,12 +14,13 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/table/types"
 )
 
+var errNotEnoghtFreeSeats = errors.New("not enough free seats")
+
 type dbServer struct {
-	cache        *Cache
-	cacheEnabled bool
-	db           ydb.Connection
-	dbCounter    int64
-	id           int
+	cache     *Cache
+	db        ydb.Connection
+	dbCounter int64
+	id        int
 }
 
 func newServer(id int, db ydb.Connection, cacheTimeout time.Duration) *dbServer {
@@ -68,10 +69,14 @@ func (s *dbServer) PostHandler(writer http.ResponseWriter, request *http.Request
 	start := time.Now()
 	freeSeats, err := s.sellTicket(ctx, id)
 	if err != nil {
-		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		if errors.Is(err, errNotEnoghtFreeSeats) {
+			http.Error(writer, "Not enough free seats", http.StatusPreconditionFailed)
+		} else {
+			http.Error(writer, err.Error(), http.StatusInternalServerError)
+		}
 		return
 	}
-	// s.cache.Delete(id)
+	// s.cache.Delete(id) // used without cdc, for single-instance application
 	duration := time.Since(start)
 	s.writeAnswer(writer, freeSeats, duration)
 }
@@ -144,7 +149,7 @@ func (s *dbServer) sellTicket(ctx context.Context, id string) (int64, error) {
 			return err
 		}
 		if freeSeats < 0 {
-			return errors.New("not enough free seats")
+			return fmt.Errorf("failed to sell ticket: %w", errNotEnoghtFreeSeats)
 		}
 
 		_, err = tx.Execute(ctx, `
