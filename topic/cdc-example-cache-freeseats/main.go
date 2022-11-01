@@ -25,7 +25,7 @@ func main() {
 
 	handler := newBalancer(
 		newServer(0, db, *cacheTimeout),
-		// newServer(1, db, *cacheTimeout),
+		newServer(1, db, *cacheTimeout),
 	)
 
 	addr := *host + ":" + strconv.Itoa(*port)
