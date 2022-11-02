@@ -54,7 +54,7 @@ WITH (
 		return fmt.Errorf("failed to create table: %w", err)
 	}
 	_, err = db.Scripting().Execute(ctx, `
-UPSERT INTO bus (id, freeSeats) VALUES ("", 0), ("1", 40), ("2A", 60);
+UPSERT INTO bus (id, freeSeats) VALUES ("bus1", 40), ("bus2", 60);
 `, nil)
 	if err != nil {
 		return fmt.Errorf("failed insert rows: %w", err)
