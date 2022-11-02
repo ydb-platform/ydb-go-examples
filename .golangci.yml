@@ -111,7 +111,7 @@ linters:
     - govet
     - ineffassign
     - misspell
-    - revive
+#    - revive
     - staticcheck
     - structcheck
     - typecheck

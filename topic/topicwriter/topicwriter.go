@@ -10,8 +10,10 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicwriter"
 )
 
+const groupID = "group-id"
+
 func ConnectSimple(ctx context.Context, db ydb.Connection) *topicwriter.Writer {
-	producerAndGroupID := "group-id"
+	producerAndGroupID := groupID
 	writer, _ := db.Topic().StartWriter(producerAndGroupID, "topicName",
 		topicoptions.WithMessageGroupID(producerAndGroupID),
 	)
@@ -19,7 +21,7 @@ func ConnectSimple(ctx context.Context, db ydb.Connection) *topicwriter.Writer {
 }
 
 func ConnectWithSyncWrite(ctx context.Context, db ydb.Connection) *topicwriter.Writer {
-	producerAndGroupID := "group-id"
+	producerAndGroupID := groupID
 	writer, _ := db.Topic().StartWriter(producerAndGroupID, "topicName",
 		topicoptions.WithMessageGroupID(producerAndGroupID),
 		topicoptions.WithSyncWrite(true),
@@ -28,7 +30,7 @@ func ConnectWithSyncWrite(ctx context.Context, db ydb.Connection) *topicwriter.W
 }
 
 func ConnectSelectCodec(ctx context.Context, db ydb.Connection) *topicwriter.Writer {
-	producerAndGroupID := "group-id"
+	producerAndGroupID := groupID
 	writer, _ := db.Topic().StartWriter(producerAndGroupID, "topicName",
 		topicoptions.WithMessageGroupID(producerAndGroupID),
 		topicoptions.WithCodec(topictypes.CodecGzip),

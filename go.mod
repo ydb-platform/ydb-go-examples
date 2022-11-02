@@ -1,6 +1,6 @@
 module github.com/ydb-platform/ydb-go-examples
 
-go 1.18
+go 1.19
 
 require (
 	github.com/google/uuid v1.3.0
