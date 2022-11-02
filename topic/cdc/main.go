@@ -11,34 +11,36 @@ import (
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 
-	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicsugar"
-	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
-
-	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
-
 	ydb "github.com/ydb-platform/ydb-go-sdk/v3"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicoptions"
+	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topictypes"
 )
 
 var (
-	dsn    string
-	prefix string
+	dsn               string
+	useEnvCredentials bool
 )
 
 func main() {
 	readFlags()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	var opts []ydb.Option
+	if useEnvCredentials {
+		opts = append(opts, environ.WithEnvironCredentials(ctx))
+	}
+
 	db, err := ydb.Open(
 		ctx,
 		dsn,
-		environ.WithEnvironCredentials(ctx),
 	)
 	if err != nil {
 		panic(fmt.Errorf("connect error: %w", err))
 	}
 	defer func() { _ = db.Close(ctx) }()
 
-	prefix = path.Join(db.Name(), prefix)
+	prefix := path.Join(db.Name())
 	tableName := "cdc"
 	topicPath := tableName + "/feed"
 	consumerName := "test-consumer"
@@ -51,31 +53,10 @@ func main() {
 		removeFromTable(ctx, db.Table(), prefix, tableName)
 	}()
 
-	// Connect to changefeed
-
-	log.Println("Start cdc read")
-	reader, err := db.Topic().StartReader(consumerName, []topicoptions.ReadSelector{{Path: topicPath}})
-	if err != nil {
-		log.Fatal("failed to start read feed", err)
-	}
-
-	for {
-		msg, err := reader.ReadMessage(ctx)
-		if err != nil {
-			panic(fmt.Errorf("failed to read message", err))
-		}
-
-		var event interface{}
-		err = topicsugar.JSONUnmarshal(msg, &event)
-		if err != nil {
-			panic(fmt.Errorf("failed to unmarshal json cdc", err))
-		}
-		log.Println("new cdc event:", event)
-	}
+	cdcRead(ctx, db, consumerName, topicPath)
 }
 
 func readFlags() {
-	required := []string{"ydb"}
 	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	flagSet.Usage = func() {
 		out := flagSet.Output()
@@ -84,33 +65,20 @@ func readFlags() {
 		flagSet.PrintDefaults()
 	}
 	flagSet.StringVar(&dsn,
-		"ydb", "",
+		"ydb", "grpc://localhost:2136/local",
 		"YDB connection string",
 	)
-	flagSet.StringVar(&prefix,
-		"prefix", "",
-		"tables prefix",
+	flagSet.BoolVar(&useEnvCredentials,
+		"use-env-credentials", false,
+		"Use credentials from env variables",
 	)
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
-		flagSet.Usage()
-		os.Exit(1)
-	}
-	flagSet.Visit(func(f *flag.Flag) {
-		for i, arg := range required {
-			if arg == f.Name {
-				required = append(required[:i], required[i+1:]...)
-			}
-		}
-	})
-	if len(required) > 0 {
-		fmt.Printf("\nSome required options not defined: %v\n\n", required)
 		flagSet.Usage()
 		os.Exit(1)
 	}
 }
 
 func prepareTableWithCDC(ctx context.Context, db ydb.Connection, prefix, tableName, topicPath, consumerName string) {
-
 	log.Println("Drop table (if exists)...")
 	err := dropTableIfExists(
 		ctx,
@@ -140,5 +108,4 @@ func prepareTableWithCDC(ctx context.Context, db ydb.Connection, prefix, tableNa
 	if err != nil {
 		panic(fmt.Errorf("failed to create feed consumer", err))
 	}
-
 }
