@@ -19,13 +19,6 @@ const (
 	interval = time.Second
 )
 
-type row struct {
-	id          uint64
-	orderID     uint64
-	date        time.Time
-	description string
-}
-
 func dropTableIfExists(ctx context.Context, c table.Client, path string) (err error) {
 	err = c.Do(
 		ctx,
