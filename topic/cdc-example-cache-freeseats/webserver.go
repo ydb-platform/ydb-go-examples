@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
+	"path"
 	"sync/atomic"
 	"time"
 
@@ -19,6 +19,7 @@ var errNotEnthoughtFreeSeats = errors.New("not enough free seats")
 
 type server struct {
 	cache     *Cache
+	mux       http.ServeMux
 	db        ydb.Connection
 	dbCounter int64
 	id        int
@@ -31,28 +32,20 @@ func newServer(id int, db ydb.Connection, cacheTimeout time.Duration) *server {
 		id:    id,
 	}
 
+	res.mux.HandleFunc("/", res.IndexPageHandler)
+	res.mux.HandleFunc("/get/", res.GetFreeSeatsHandler)
+	res.mux.HandleFunc("/buy/", res.BuyTicketHandler)
+
 	return res
 }
 
 func (s *server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	switch request.Method {
-	case http.MethodGet:
-		if request.URL.Path == "/" {
-			s.IndexPageHandler(writer, request)
-		} else {
-			s.GetHandler(writer, request)
-		}
-	case http.MethodPost:
-		s.PostHandler(writer, request)
-	default:
-		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
-	}
+	s.mux.ServeHTTP(writer, request)
 }
 
-// GetHandler return free seats
-func (s *server) GetHandler(writer http.ResponseWriter, request *http.Request) {
+func (s *server) GetFreeSeatsHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
-	id := strings.TrimPrefix(request.URL.Path, "/")
+	id := path.Base(request.URL.Path)
 
 	start := time.Now()
 	freeSeats, err := s.getFreeSeats(ctx, id)
@@ -64,10 +57,9 @@ func (s *server) GetHandler(writer http.ResponseWriter, request *http.Request) {
 	s.writeAnswer(writer, freeSeats, duration)
 }
 
-// PostHandler sell seats from bus id
-func (s *server) PostHandler(writer http.ResponseWriter, request *http.Request) {
+func (s *server) BuyTicketHandler(writer http.ResponseWriter, request *http.Request) {
 	ctx := request.Context()
-	id := strings.TrimPrefix(request.URL.Path, "/")
+	id := path.Base(request.URL.Path)
 
 	start := time.Now()
 	freeSeats, err := s.sellTicket(ctx, id)
@@ -169,10 +161,53 @@ UPDATE bus SET freeSeats = freeSeats - 1 WHERE id=$id;
 }
 
 func (s *server) IndexPageHandler(writer http.ResponseWriter, request *http.Request) {
-	_, _ = io.WriteString(writer, `Use requests:
-GET /1 - for get tickets for bus 1
-GET /2A - for get tickets for bus 2A
-POST /1 - for sell ticket for bus 1
-POST /2A - for sell ticket for bus 2A
+	ctx := request.Context()
+
+	var busIDs []string
+
+	err := s.db.Table().DoTx(ctx, func(ctx context.Context, tx table.TransactionActor) error {
+		res, err := tx.Execute(ctx, "SELECT id FROM bus ORDER BY id", nil)
+		if err != nil {
+			return err
+		}
+
+		res.NextResultSet(ctx, "id")
+
+		for res.HasNextRow() {
+			res.NextRow()
+			var id string
+			err = res.ScanWithDefaults(&id)
+			if err != nil {
+				return err
+			}
+			busIDs = append(busIDs, id)
+		}
+
+		return nil
+	})
+	if err != nil {
+		http.Error(writer, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	writer.Header().Set("Content-Type", "text/html")
+	writer.WriteHeader(http.StatusOK)
+
+	_, _ = io.WriteString(writer, `Bus table<br />
+<br />
+<table border="1">
+	<tr>
+		<th>ID</th>
+		<th>Get free seats link</th>
+		<th>Buy ticket link</th>
+	</tr>
 `)
+	for _, id := range busIDs {
+		_, _ = fmt.Fprintf(writer, `<tr>
+	<td>%v</td>
+	<td><a href="/get/%v">/get/%v</a></td>
+	<td><a href="/buy/%v">/buy/%v</a></td>
+</tr>`, id, id, id, id, id)
+	}
+	_, _ = io.WriteString(writer, "</table>")
 }
