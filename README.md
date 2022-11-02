@@ -20,8 +20,8 @@ Example | Description                                                     | Run 
 `pagination` | pagination example                                              | `make pagination`
 `partitioning_policies` | partitioning_policies example                                   | `make partitioning_policies`
 `read_table` | read table example                                              | `make read_table`
-`topic/cdc` | change table records and read cdc stream                        | `go run topic/cdc/*.go`
-`topic/cdc-example-cache-freeseats` | example of use cdc for cache updates in web application         | `go run topic/cdc-example-cache-freeseats/*.go`
+`topic/cdc-cache-bus-freeseats` | example of use cdc for cache updates in web application         | `go run topic/cdc-example-cache-freeseats/*.go`
+`topic/cdc-fill-and-read` | change table records and read cdc stream                        | `go run topic/cdc/*.go`
 `ttl` | TTL using example                                               | `make ttl`
 `ttl_readtable` | TTL using example                                               | `make ttl_readtable`
 `url_shortener` | URL shortener example (yandex function and local http-server)   | `make url_shortener`
