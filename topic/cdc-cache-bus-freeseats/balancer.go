@@ -7,7 +7,7 @@ import (
 
 type balancer struct {
 	handlers []http.Handler
-	counter  atomic.Int32
+	counter  int32
 }
 
 func newBalancer(handlers ...http.Handler) *balancer {
@@ -17,7 +17,7 @@ func newBalancer(handlers ...http.Handler) *balancer {
 }
 
 func (b *balancer) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	counter := b.counter.Add(1)
+	counter := atomic.AddInt32(&b.counter, 1)
 	if counter < 0 {
 		counter = -counter
 	}
