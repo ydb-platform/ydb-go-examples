@@ -39,6 +39,7 @@ func (s *server) cdcLoop() {
 			Update struct {
 				FreeSeats int64
 			}
+			Erase *struct{}
 		}
 
 		err = topicsugar.JSONUnmarshal(msg, &cdcEvent)
@@ -48,7 +49,13 @@ func (s *server) cdcLoop() {
 
 		busID := cdcEvent.Key[0]
 		// s.dropFromCache(busID) // used for clean cache and force database request
-		s.cache.Set(busID, cdcEvent.Update.FreeSeats) // used for direct update cache from cdc without database request
+		if cdcEvent.Erase == nil {
+			s.cache.Set(busID, cdcEvent.Update.FreeSeats) // used for direct update cache from cdc without database request
+			log.Println("server-id:", s.id, "Update record: ", busID, "set freeseats:", cdcEvent.Update.FreeSeats)
+		} else {
+			log.Println("server-id:", s.id, "Remove record from cache: ", busID)
+			s.cache.Delete(busID)
+		}
 		err = reader.Commit(ctx, msg)
 		if err != nil {
 			log.Printf("failed to commit message: %+v", err)
