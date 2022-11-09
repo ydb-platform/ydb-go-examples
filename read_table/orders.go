@@ -22,8 +22,7 @@ type row struct {
 }
 
 func dropTableIfExists(ctx context.Context, c table.Client, path string) (err error) {
-	err = c.Do(
-		ctx,
+	err = c.Do(ctx,
 		func(ctx context.Context, s table.Session) error {
 			return s.DropTable(ctx, path)
 		},
@@ -36,8 +35,7 @@ func dropTableIfExists(ctx context.Context, c table.Client, path string) (err er
 }
 
 func createTable(ctx context.Context, c table.Client, path string) (err error) {
-	return c.Do(
-		ctx,
+	return c.Do(ctx,
 		func(ctx context.Context, s table.Session) error {
 			return s.CreateTable(ctx, path,
 				options.WithColumn("customer_id", types.Optional(types.TypeUint64)),
@@ -86,8 +84,7 @@ type templateConfig struct {
 }
 
 func fillTable(ctx context.Context, c table.Client, prefix string) (err error) {
-	return c.Do(
-		ctx,
+	return c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			_, _, err = s.Execute(
 				ctx,
@@ -138,8 +135,7 @@ func order(customerID uint64, orderID uint64, description string, date string) t
 }
 
 func readTable(ctx context.Context, c table.Client, path string, opts ...options.ReadTableOption) (err error) {
-	err = c.Do(
-		ctx,
+	err = c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			res, err := s.StreamReadTable(ctx, path, opts...)
 			if err != nil {

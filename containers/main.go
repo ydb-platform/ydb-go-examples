@@ -62,8 +62,7 @@ func main() {
 	}
 	defer func() { _ = db.Close(ctx) }()
 
-	err = db.Table().DoTx(
-		ctx,
+	err = db.Table().DoTx(ctx,
 		func(ctx context.Context, tx table.TransactionActor) (err error) {
 			res, err := tx.Execute(ctx, render(query, nil), nil)
 			if err != nil {

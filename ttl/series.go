@@ -55,8 +55,7 @@ func readExpiredBatchTransaction(ctx context.Context, c table.Client, prefix str
 	readTx := table.TxControl(table.BeginTx(table.WithOnlineReadOnly()), table.CommitTx())
 
 	var res result.Result
-	err := c.Do(
-		ctx,
+	err := c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			_, res, err = s.Execute(ctx, readTx, query, table.NewQueryParameters(
 				table.ValueParam("$timestamp", types.Uint64Value(timestamp)),
@@ -90,8 +89,7 @@ func deleteDocumentWithTimestamp(ctx context.Context, c table.Client, prefix str
 
 	writeTx := table.TxControl(table.BeginTx(table.WithSerializableReadWrite()), table.CommitTx())
 
-	err := c.Do(
-		ctx,
+	err := c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			_, _, err = s.Execute(ctx, writeTx, query, table.NewQueryParameters(
 				table.ValueParam("$doc_id", types.Uint64Value(lastDocID)),
@@ -162,8 +160,7 @@ func readDocument(ctx context.Context, c table.Client, prefix, url string) error
 
 	readTx := table.TxControl(table.BeginTx(table.WithOnlineReadOnly()), table.CommitTx())
 
-	err := c.Do(
-		ctx,
+	err := c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			_, res, err := s.Execute(ctx, readTx, query, table.NewQueryParameters(
 				table.ValueParam("$url", types.TextValue(url)),
@@ -228,8 +225,7 @@ func addDocument(ctx context.Context, c table.Client, prefix, url, html string, 
 
 	writeTx := table.TxControl(table.BeginTx(table.WithSerializableReadWrite()), table.CommitTx())
 
-	err := c.Do(
-		ctx,
+	err := c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			_, _, err = s.Execute(ctx, writeTx, query, table.NewQueryParameters(
 				table.ValueParam("$url", types.TextValue(url)),
@@ -243,8 +239,7 @@ func addDocument(ctx context.Context, c table.Client, prefix, url, html string, 
 }
 
 func createTables(ctx context.Context, c table.Client, prefix string) (err error) {
-	err = c.Do(
-		ctx,
+	err = c.Do(ctx,
 		func(ctx context.Context, s table.Session) error {
 			return s.CreateTable(ctx, path.Join(prefix, "documents"),
 				options.WithColumn("doc_id", types.Optional(types.TypeUint64)),
@@ -263,8 +258,7 @@ func createTables(ctx context.Context, c table.Client, prefix string) (err error
 	}
 
 	for i := 0; i < expirationQueueCount; i++ {
-		err = c.Do(
-			ctx,
+		err = c.Do(ctx,
 			func(ctx context.Context, s table.Session) error {
 				return s.CreateTable(ctx, path.Join(prefix, fmt.Sprintf("expiration_queue_%v", i)),
 					options.WithColumn("doc_id", types.Optional(types.TypeUint64)),

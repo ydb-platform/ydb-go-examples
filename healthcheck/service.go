@@ -88,8 +88,7 @@ func (s *service) createTable(ctx context.Context) (err error) {
 			TablePathPrefix: s.database,
 		},
 	)
-	return s.db.Table().Do(
-		ctx,
+	return s.db.Table().Do(ctx,
 		func(ctx context.Context, s table.Session) error {
 			return s.ExecuteSchemeQuery(ctx, query)
 		},
@@ -168,8 +167,7 @@ func (s *service) saveCodes(ctx context.Context, codes *sync.Map) (err error) {
 			func(url, code interface{}) bool {
 				res := code.(result)
 				writeTx := table.TxControl(table.BeginTx(table.WithSerializableReadWrite()), table.CommitTx())
-				err = s.db.Table().Do(
-					ctx,
+				err = s.db.Table().Do(ctx,
 					func(ctx context.Context, s table.Session) (err error) {
 						_, _, err = s.Execute(
 							ctx,

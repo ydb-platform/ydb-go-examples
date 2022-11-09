@@ -51,8 +51,7 @@ func deleteExpiredDocuments(ctx context.Context, c table.Client, prefix string, 
 
 	writeTx := table.TxControl(table.BeginTx(table.WithSerializableReadWrite()), table.CommitTx())
 
-	err := c.Do(
-		ctx,
+	err := c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			_, _, err = s.Execute(ctx, writeTx, query,
 				table.NewQueryParameters(
@@ -132,8 +131,7 @@ func deleteExpired(ctx context.Context, c table.Client, prefix string, timestamp
 	fmt.Printf("> DeleteExpired: timestamp: %v:\n", timestamp)
 
 	var res options.Description
-	err := c.Do(
-		ctx,
+	err := c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			res, err = s.DescribeTable(ctx, path.Join(prefix, "documents"), options.WithShardKeyBounds())
 			return err
@@ -173,8 +171,7 @@ func readDocument(ctx context.Context, c table.Client, prefix, url string) error
 	readTx := table.TxControl(table.BeginTx(table.WithOnlineReadOnly()), table.CommitTx())
 
 	var res result.Result
-	err := c.Do(
-		ctx,
+	err := c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			_, res, err = s.Execute(ctx, readTx, query, table.NewQueryParameters(
 				table.ValueParam("$url", types.TextValue(url))),
@@ -234,8 +231,7 @@ func addDocument(ctx context.Context, c table.Client, prefix, url, html string, 
 
 	writeTx := table.TxControl(table.BeginTx(table.WithSerializableReadWrite()), table.CommitTx())
 
-	err := c.Do(
-		ctx,
+	err := c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			_, _, err = s.Execute(ctx, writeTx, query, table.NewQueryParameters(
 				table.ValueParam("$url", types.TextValue(url)),
@@ -249,8 +245,7 @@ func addDocument(ctx context.Context, c table.Client, prefix, url, html string, 
 }
 
 func createTables(ctx context.Context, c table.Client, prefix string) (err error) {
-	err = c.Do(
-		ctx,
+	err = c.Do(ctx,
 		func(ctx context.Context, s table.Session) error {
 			return s.CreateTable(ctx, path.Join(prefix, "documents"),
 				options.WithColumn("doc_id", types.Optional(types.TypeUint64)),

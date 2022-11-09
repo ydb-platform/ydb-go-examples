@@ -21,8 +21,7 @@ func wrap(err error, explanation string) error {
 func testUniformPartitions(ctx context.Context, c table.Client, tablePath string) error {
 	log.Printf("Create uniform partitions table: %v\n", tablePath)
 
-	err := c.Do(
-		ctx,
+	err := c.Do(ctx,
 		func(ctx context.Context, session table.Session) error {
 			err := session.CreateTable(ctx, tablePath,
 				options.WithColumn("key", types.Optional(types.TypeUint64)),
@@ -57,8 +56,7 @@ func testUniformPartitions(ctx context.Context, c table.Client, tablePath string
 func testExplicitPartitions(ctx context.Context, c table.Client, tablePath string) error {
 	log.Printf("Create explicit partitions table: %v\n", tablePath)
 
-	err := c.Do(
-		ctx,
+	err := c.Do(ctx,
 		func(ctx context.Context, session table.Session) error {
 			err := session.CreateTable(ctx, tablePath,
 				options.WithColumn("key", types.Optional(types.TypeUint64)),

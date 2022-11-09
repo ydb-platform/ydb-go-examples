@@ -20,8 +20,7 @@ const (
 )
 
 func dropTableIfExists(ctx context.Context, c table.Client, path string) (err error) {
-	err = c.Do(
-		ctx,
+	err = c.Do(ctx,
 		func(ctx context.Context, s table.Session) error {
 			return s.DropTable(ctx, path)
 		},
@@ -34,8 +33,7 @@ func dropTableIfExists(ctx context.Context, c table.Client, path string) (err er
 }
 
 func createTable(ctx context.Context, c table.Client, prefix, tableName string) (err error) {
-	err = c.Do(
-		ctx,
+	err = c.Do(ctx,
 		func(ctx context.Context, s table.Session) error {
 			return s.CreateTable(ctx, path.Join(prefix, tableName),
 				options.WithColumn("id", types.Optional(types.TypeUint64)),

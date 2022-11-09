@@ -53,8 +53,7 @@ func selectPaging(
 
 	readTx := table.TxControl(table.BeginTx(table.WithOnlineReadOnly()), table.CommitTx())
 
-	err = c.Do(
-		ctx,
+	err = c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			_, res, err := s.Execute(ctx, readTx, query,
 				table.NewQueryParameters(
@@ -112,8 +111,7 @@ func fillTableWithData(ctx context.Context, c table.Client, prefix string) (err 
 
 	writeTx := table.TxControl(table.BeginTx(table.WithSerializableReadWrite()), table.CommitTx())
 
-	err = c.Do(
-		ctx,
+	err = c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			_, _, err = s.Execute(ctx, writeTx, query, table.NewQueryParameters(
 				table.ValueParam("$schoolsData", getSchoolData()),
@@ -124,8 +122,7 @@ func fillTableWithData(ctx context.Context, c table.Client, prefix string) (err 
 }
 
 func createTable(ctx context.Context, c table.Client, path string) (err error) {
-	err = c.Do(
-		ctx,
+	err = c.Do(ctx,
 		func(ctx context.Context, s table.Session) error {
 			return s.CreateTable(ctx, path,
 				options.WithColumn("city", types.Optional(types.TypeUTF8)),

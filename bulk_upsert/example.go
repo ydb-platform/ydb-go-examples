@@ -50,8 +50,7 @@ func getLogBatch(logs []logMessage, offset int) []logMessage {
 
 func createLogTable(ctx context.Context, c table.Client, tablePath string) error {
 	log.Printf("Create table: %v\n", tablePath)
-	err := c.Do(
-		ctx,
+	err := c.Do(ctx,
 		func(ctx context.Context, session table.Session) error {
 			return session.CreateTable(ctx, tablePath,
 				options.WithColumn("App", types.Optional(types.TypeUTF8)),
@@ -67,8 +66,7 @@ func createLogTable(ctx context.Context, c table.Client, tablePath string) error
 }
 
 func writeLogBatch(ctx context.Context, c table.Client, tablePath string, logs []logMessage) error {
-	err := c.Do(
-		ctx,
+	err := c.Do(ctx,
 		func(ctx context.Context, session table.Session) error {
 			rows := make([]types.Value, 0, len(logs))
 

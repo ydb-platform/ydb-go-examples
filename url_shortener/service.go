@@ -195,8 +195,7 @@ func (s *service) createTable(ctx context.Context) (err error) {
 			TablePathPrefix: s.database,
 		},
 	)
-	return s.db.Table().Do(
-		ctx,
+	return s.db.Table().Do(ctx,
 		func(ctx context.Context, s table.Session) error {
 			err := s.ExecuteSchemeQuery(ctx, query)
 			return err
@@ -231,8 +230,7 @@ func (s *service) insertShort(ctx context.Context, url string) (h string, err er
 		),
 		table.CommitTx(),
 	)
-	err = s.db.Table().Do(
-		ctx,
+	err = s.db.Table().Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			_, _, err = s.Execute(ctx, writeTx, query,
 				table.NewQueryParameters(
@@ -272,8 +270,7 @@ func (s *service) selectLong(ctx context.Context, hash string) (url string, err 
 		table.CommitTx(),
 	)
 	var res result.Result
-	err = s.db.Table().Do(
-		ctx,
+	err = s.db.Table().Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			_, res, err = s.Execute(ctx, readTx, query,
 				table.NewQueryParameters(

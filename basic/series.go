@@ -72,8 +72,7 @@ FROM AS_TABLE($episodesData);
 
 func readTable(ctx context.Context, c table.Client, path string) (err error) {
 	var res result.StreamResult
-	err = c.Do(
-		ctx,
+	err = c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			res, err = s.StreamReadTable(ctx, path,
 				options.ReadOrdered(),
@@ -140,8 +139,7 @@ func readTable(ctx context.Context, c table.Client, path string) (err error) {
 
 func describeTableOptions(ctx context.Context, c table.Client) (err error) {
 	var desc options.TableOptionsDescription
-	err = c.Do(
-		ctx,
+	err = c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			desc, err = s.DescribeTableOptions(ctx)
 			return
@@ -203,8 +201,7 @@ func selectSimple(ctx context.Context, c table.Client, prefix string) (err error
 		table.CommitTx(),
 	)
 	var res result.Result
-	err = c.Do(
-		ctx,
+	err = c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			_, res, err = s.Execute(ctx, readTx, query,
 				table.NewQueryParameters(
@@ -263,8 +260,7 @@ func scanQuerySelect(ctx context.Context, c table.Client, prefix string) (err er
 		},
 	)
 
-	return c.Do(
-		ctx,
+	return c.Do(ctx,
 		func(ctx context.Context, s table.Session) error {
 			res, err := s.StreamExecuteScanQuery(ctx, query,
 				table.NewQueryParameters(
@@ -315,8 +311,7 @@ func fillTablesWithData(ctx context.Context, c table.Client, prefix string) (err
 		),
 		table.CommitTx(),
 	)
-	err = c.Do(
-		ctx,
+	err = c.Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			_, _, err = s.Execute(ctx, writeTx, render(fill, templateConfig{
 				TablePathPrefix: prefix,
@@ -332,8 +327,7 @@ func fillTablesWithData(ctx context.Context, c table.Client, prefix string) (err
 }
 
 func createTables(ctx context.Context, c table.Client, prefix string) (err error) {
-	err = c.Do(
-		ctx,
+	err = c.Do(ctx,
 		func(ctx context.Context, s table.Session) error {
 			return s.CreateTable(ctx, path.Join(prefix, "series"),
 				options.WithColumn("series_id", types.Optional(types.TypeUint64)),
@@ -349,8 +343,7 @@ func createTables(ctx context.Context, c table.Client, prefix string) (err error
 		return err
 	}
 
-	err = c.Do(
-		ctx,
+	err = c.Do(ctx,
 		func(ctx context.Context, s table.Session) error {
 			return s.CreateTable(ctx, path.Join(prefix, "seasons"),
 				options.WithColumn("series_id", types.Optional(types.TypeUint64)),
@@ -366,8 +359,7 @@ func createTables(ctx context.Context, c table.Client, prefix string) (err error
 		return err
 	}
 
-	err = c.Do(
-		ctx,
+	err = c.Do(ctx,
 		func(ctx context.Context, s table.Session) error {
 			return s.CreateTable(ctx, path.Join(prefix, "episodes"),
 				options.WithColumn("series_id", types.Optional(types.TypeUint64)),
@@ -387,8 +379,7 @@ func createTables(ctx context.Context, c table.Client, prefix string) (err error
 }
 
 func describeTable(ctx context.Context, c table.Client, path string) (err error) {
-	err = c.Do(
-		ctx,
+	err = c.Do(ctx,
 		func(ctx context.Context, s table.Session) error {
 			desc, err := s.DescribeTable(ctx, path)
 			if err != nil {

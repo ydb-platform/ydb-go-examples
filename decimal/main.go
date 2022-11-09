@@ -72,8 +72,7 @@ func main() {
 	var (
 		tablePath = path.Join(prefix, "decimals")
 	)
-	err = db.Table().Do(
-		ctx,
+	err = db.Table().Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			return s.CreateTable(ctx, tablePath,
 				options.WithColumn("id", types.Optional(types.TypeUint32)),
@@ -86,8 +85,7 @@ func main() {
 		panic(err)
 	}
 
-	err = db.Table().Do(
-		ctx,
+	err = db.Table().Do(ctx,
 		func(ctx context.Context, s table.Session) (err error) {
 			txc := table.TxControl(
 				table.BeginTx(
