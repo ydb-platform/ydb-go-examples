@@ -10,7 +10,7 @@ require (
 	github.com/ydb-platform/ydb-go-sdk-auth-environ v0.1.2
 	github.com/ydb-platform/ydb-go-sdk-prometheus v0.11.10
 	github.com/ydb-platform/ydb-go-sdk-zerolog v0.12.2
-	github.com/ydb-platform/ydb-go-sdk/v3 v3.39.0
+	github.com/ydb-platform/ydb-go-sdk/v3 v3.40.0
 	github.com/ydb-platform/ydb-go-yc v0.9.1
 	google.golang.org/genproto v0.0.0-20220822174746-9e6da59bd2fc
 )

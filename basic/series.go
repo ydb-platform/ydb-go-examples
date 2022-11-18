@@ -338,6 +338,7 @@ func createTables(ctx context.Context, c table.Client, prefix string) (err error
 				options.WithPrimaryKeyColumn("series_id"),
 			)
 		},
+		table.WithIdempotent(),
 	)
 	if err != nil {
 		return err
@@ -354,6 +355,7 @@ func createTables(ctx context.Context, c table.Client, prefix string) (err error
 				options.WithPrimaryKeyColumn("series_id", "season_id"),
 			)
 		},
+		table.WithIdempotent(),
 	)
 	if err != nil {
 		return err
@@ -370,6 +372,7 @@ func createTables(ctx context.Context, c table.Client, prefix string) (err error
 				options.WithPrimaryKeyColumn("series_id", "season_id", "episode_id"),
 			)
 		},
+		table.WithIdempotent(),
 	)
 	if err != nil {
 		return err
