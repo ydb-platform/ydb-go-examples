@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"time"
 
 	"github.com/ydb-platform/ydb-go-sdk/v3"
 	"github.com/ydb-platform/ydb-go-sdk/v3/sugar"
@@ -59,6 +60,10 @@ func main() {
 		log.Fatalf("connect error: %v", err)
 	}
 	defer func() { _ = db.Close() }()
+
+	db.SetMaxOpenConns(50)
+	db.SetMaxIdleConns(50)
+	db.SetConnMaxIdleTime(time.Second)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
