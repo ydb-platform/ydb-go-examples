@@ -10,7 +10,7 @@ URL shortener is an application which provide make short URL and store results i
 go get -u github.com/ydb-platform/ydb-go-sdk/v3/example/url_shortener
 YDB_SERVICE_ACCOUNT_KEY_FILE_CREDENTIALS=/path/to/sa/key/file \
 url_shortener \
-   -ydb=grpcs://ydb.serverless.yandexcloud.net:2135/?database=/ru-central1/b1g8skpblkos03malf3s/etn01f8gv9an9sedo9fu \
+   -ydb=grpcs://ydb.serverless.yandexcloud.net:2135/ru-central1/b1g8skpblkos03malf3s/etn01f8gv9an9sedo9fu \
    -port=80
 ```
 Open http://localhost/ in browse and use URL shortener web interface
@@ -26,7 +26,7 @@ yc sls fn version create \
    --entrypoint=main.Serverless \
    --memory=128m \
    --execution-timeout=1s \
-   --environment YDB="grpcs://ydb.serverless.yandexcloud.net:2135/?database=/ru-central1/b1g8skpblkos03malf3s/etnpa7o3qltdfgu9vsap" \
+   --environment YDB="grpcs://ydb.serverless.yandexcloud.net:2135/ru-central1/b1g8skpblkos03malf3s/etnpa7o3qltdfgu9vsap" \
    --source-path=./archive.zip \
    --function-id=d4euc5gp5614b56crpnj
 ```

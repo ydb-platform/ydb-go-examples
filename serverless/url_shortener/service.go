@@ -10,8 +10,10 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"regexp"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -78,7 +80,6 @@ type templateConfig struct {
 }
 
 type service struct {
-	database string
 	db       ydb.Connection
 	registry *prometheus.Registry
 	router   *mux.Router
@@ -88,90 +89,100 @@ type service struct {
 	callsErrors  *prometheus.GaugeVec
 }
 
-func newService(ctx context.Context, dsn string, opts ...ydb.Option) (s *service, err error) {
-	var (
-		registry = prometheus.NewRegistry()
-		calls    = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: "app",
-			Name:      "calls",
-		}, []string{
-			"method",
-			"success",
-		})
-		callsLatency = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-			Namespace: "app",
-			Name:      "latency",
-			Buckets: []float64{
-				(1 * time.Millisecond).Seconds(),
-				(5 * time.Millisecond).Seconds(),
-				(10 * time.Millisecond).Seconds(),
-				(50 * time.Millisecond).Seconds(),
-				(100 * time.Millisecond).Seconds(),
-				(500 * time.Millisecond).Seconds(),
-				(1000 * time.Millisecond).Seconds(),
-				(5000 * time.Millisecond).Seconds(),
-				(10000 * time.Millisecond).Seconds(),
-			},
-		}, []string{
-			"success",
-			"method",
-		})
-		callsErrors = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: "app",
-			Name:      "errors",
-		}, []string{
-			"method",
-		})
-	)
+var (
+	s    *service
+	once sync.Once
+)
 
-	registry.MustRegister(calls)
-	registry.MustRegister(callsLatency)
-	registry.MustRegister(callsErrors)
+func getService(ctx context.Context, dsn string, opts ...ydb.Option) (s *service, err error) {
+	once.Do(func() {
+		var (
+			registry = prometheus.NewRegistry()
+			calls    = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+				Namespace: "app",
+				Name:      "calls",
+			}, []string{
+				"method",
+				"success",
+			})
+			callsLatency = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+				Namespace: "app",
+				Name:      "latency",
+				Buckets: []float64{
+					(1 * time.Millisecond).Seconds(),
+					(5 * time.Millisecond).Seconds(),
+					(10 * time.Millisecond).Seconds(),
+					(50 * time.Millisecond).Seconds(),
+					(100 * time.Millisecond).Seconds(),
+					(500 * time.Millisecond).Seconds(),
+					(1000 * time.Millisecond).Seconds(),
+					(5000 * time.Millisecond).Seconds(),
+					(10000 * time.Millisecond).Seconds(),
+				},
+			}, []string{
+				"success",
+				"method",
+			})
+			callsErrors = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+				Namespace: "app",
+				Name:      "errors",
+			}, []string{
+				"method",
+			})
+		)
 
-	opts = append(
-		opts,
-		ydbMetrics.WithTraces(
-			registry,
-			ydbMetrics.WithSeparator("_"),
-			ydbMetrics.WithDetails(
+		registry.MustRegister(calls)
+		registry.MustRegister(callsLatency)
+		registry.MustRegister(callsErrors)
+
+		opts = append(
+			opts,
+			ydbMetrics.WithTraces(
+				registry,
+				ydbMetrics.WithSeparator("_"),
+				ydbMetrics.WithDetails(
+					trace.DetailsAll,
+				),
+			),
+			ydbZerolog.WithTraces(
+				&log,
 				trace.DetailsAll,
 			),
-		),
-		ydbZerolog.WithTraces(
-			&log,
-			trace.DetailsAll,
-		),
-	)
+		)
 
-	db, err := ydb.Open(ctx, dsn, opts...)
+		s = &service{
+			registry: registry,
+			router:   mux.NewRouter(),
+
+			calls:        calls,
+			callsLatency: callsLatency,
+			callsErrors:  callsErrors,
+		}
+
+		s.db, err = ydb.Open(ctx, dsn, opts...)
+		if err != nil {
+			err = fmt.Errorf("connect error: %w", err)
+			return
+		}
+
+		s.router.Handle("/metrics", promhttp.InstrumentMetricHandler(
+			registry, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
+		))
+		s.router.HandleFunc("/", s.handleIndex).Methods(http.MethodGet)
+		s.router.HandleFunc("/shorten", s.handleShorten).Methods(http.MethodPost)
+		s.router.HandleFunc("/{[0-9a-fA-F]{8}}", s.handleLonger).Methods(http.MethodGet)
+
+		err = s.createTable(ctx)
+		if err != nil {
+			_ = s.db.Close(ctx)
+			err = fmt.Errorf("error on create table: %w", err)
+			return
+		}
+	})
 	if err != nil {
-		return nil, fmt.Errorf("connect error: %w", err)
+		once = sync.Once{}
+		return nil, err
 	}
-
-	s = &service{
-		database: db.Name(),
-		db:       db,
-		registry: registry,
-		router:   mux.NewRouter(),
-
-		calls:        calls,
-		callsLatency: callsLatency,
-		callsErrors:  callsErrors,
-	}
-
-	s.router.Handle("/metrics", promhttp.InstrumentMetricHandler(
-		registry, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
-	))
-	s.router.HandleFunc("/", s.handleIndex).Methods(http.MethodGet)
-	s.router.HandleFunc("/shorten", s.handleShorten).Methods(http.MethodPost)
-	s.router.HandleFunc("/{[0-9a-fA-F]{8}}", s.handleLonger).Methods(http.MethodGet)
-
-	err = s.createTable(ctx)
-	if err != nil {
-		_ = db.Close(ctx)
-		return nil, fmt.Errorf("error on create table: %w", err)
-	}
-
 	return s, nil
 }
 
@@ -192,7 +203,7 @@ func (s *service) createTable(ctx context.Context) (err error) {
 			);
 		`)),
 		templateConfig{
-			TablePathPrefix: s.database,
+			TablePathPrefix: path.Join(s.db.Name(), prefix),
 		},
 	)
 	return s.db.Table().Do(ctx,
@@ -221,7 +232,7 @@ func (s *service) insertShort(ctx context.Context, url string) (h string, err er
 				($hash, $src);
 		`)),
 		templateConfig{
-			TablePathPrefix: s.database,
+			TablePathPrefix: path.Join(s.db.Name(), prefix),
 		},
 	)
 	writeTx := table.TxControl(
@@ -260,12 +271,12 @@ func (s *service) selectLong(ctx context.Context, hash string) (url string, err 
 				hash = $hash;
 		`)),
 		templateConfig{
-			TablePathPrefix: s.database,
+			TablePathPrefix: path.Join(s.db.Name(), prefix),
 		},
 	)
 	readTx := table.TxControl(
 		table.BeginTx(
-			table.WithOnlineReadOnly(),
+			table.WithSnapshotReadOnly(),
 		),
 		table.CommitTx(),
 	)
@@ -427,7 +438,7 @@ func (s *service) handleLonger(w http.ResponseWriter, r *http.Request) {
 // Serverless is an entrypoint for serverless yandex function
 // nolint:deadcode
 func Serverless(w http.ResponseWriter, r *http.Request) {
-	s, err := newService(
+	s, err := getService(
 		r.Context(),
 		os.Getenv("YDB"),
 		environ.WithEnvironCredentials(r.Context()),
