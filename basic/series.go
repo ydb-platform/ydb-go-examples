@@ -23,15 +23,15 @@ PRAGMA TablePathPrefix("{{ .TablePathPrefix }}");
 
 DECLARE $seriesData AS List<Struct<
 	series_id: Uint64,
-	title: Utf8,
-	series_info: Utf8,
+	title: Text,
+	series_info: Text,
 	release_date: Date,
-	comment: Optional<Utf8>>>;
+	comment: Optional<Text>>>;
 
 DECLARE $seasonsData AS List<Struct<
 	series_id: Uint64,
 	season_id: Uint64,
-	title: Utf8,
+	title: Text,
 	first_aired: Date,
 	last_aired: Date>>;
 
@@ -39,7 +39,7 @@ DECLARE $episodesData AS List<Struct<
 	series_id: Uint64,
 	season_id: Uint64,
 	episode_id: Uint64,
-	title: Utf8,
+	title: Text,
 	air_date: Date>>;
 
 REPLACE INTO series
@@ -251,7 +251,7 @@ func scanQuerySelect(ctx context.Context, c table.Client, prefix string) (err er
 
 			DECLARE $series AS List<UInt64>;
 
-			SELECT series_id, season_id, title, CAST(CAST(first_aired AS Date) AS String) AS first_aired
+			SELECT series_id, season_id, title, CAST(CAST(first_aired AS Date) AS Bytes) AS first_aired
 			FROM seasons
 			WHERE series_id IN $series
 		`)),

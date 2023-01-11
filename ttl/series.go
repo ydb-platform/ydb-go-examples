@@ -150,7 +150,7 @@ func readDocument(ctx context.Context, c table.Client, prefix, url string) error
 	query := fmt.Sprintf(`
 		PRAGMA TablePathPrefix("%v");
 
-        DECLARE $url AS Utf8;
+        DECLARE $url AS Text;
 
         $doc_id = Digest::CityHash($url);
 
@@ -207,8 +207,8 @@ func addDocument(ctx context.Context, c table.Client, prefix, url, html string, 
 	query := fmt.Sprintf(`
 		PRAGMA TablePathPrefix("%v");
 
-		DECLARE $url AS Utf8;
-        DECLARE $html AS Utf8;
+		DECLARE $url AS Text;
+        DECLARE $html AS Text;
         DECLARE $timestamp AS Uint64;
 
         $doc_id = Digest::CityHash($url);

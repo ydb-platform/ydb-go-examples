@@ -76,10 +76,10 @@ func (s *service) createTable(ctx context.Context) (err error) {
 	query := render(
 		template.Must(template.New("").Parse(`
 			CREATE TABLE healthchecks (
-				url         Utf8,
+				url         Text,
 				code        Int32,
 				ts          DateTime,
-				error       Utf8,
+				error       Text,
 
 				PRIMARY KEY (url, ts)
 			);
@@ -152,10 +152,10 @@ func (s *service) saveCodes(ctx context.Context, codes *sync.Map) (err error) {
 	query := fmt.Sprintf(`
         PRAGMA TablePathPrefix("%s");
 
-		DECLARE $url AS Utf8;
+		DECLARE $url AS Text;
         DECLARE $code AS Int32;
         DECLARE $ts AS DateTime;
-        DECLARE $error AS Utf8;
+        DECLARE $error AS Text;
 
         UPSERT INTO healthchecks ( url, code, ts, error )
         VALUES ($url, $code, $ts, $error);`,

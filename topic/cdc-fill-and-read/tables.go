@@ -73,7 +73,7 @@ func fillTable(ctx context.Context, c table.Client, prefix, tableName string) {
 PRAGMA TablePathPrefix("%v");
 
 DECLARE $id AS Uint64;
-DECLARE $value AS Utf8;
+DECLARE $value AS Text;
 
 UPSERT INTO
 	%v

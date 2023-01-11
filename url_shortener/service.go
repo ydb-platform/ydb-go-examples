@@ -185,8 +185,8 @@ func (s *service) createTable(ctx context.Context) (err error) {
 			PRAGMA TablePathPrefix("{{ .TablePathPrefix }}");
 
 			CREATE TABLE urls (
-				src Utf8,
-				hash Utf8,
+				src Text,
+				hash Text,
 
 				PRIMARY KEY (hash)
 			);
@@ -212,8 +212,8 @@ func (s *service) insertShort(ctx context.Context, url string) (h string, err er
 		template.Must(template.New("").Parse(`
 			PRAGMA TablePathPrefix("{{ .TablePathPrefix }}");
 
-			DECLARE $hash as Utf8;
-			DECLARE $src as Utf8;
+			DECLARE $hash as Text;
+			DECLARE $src as Text;
 
 			REPLACE INTO
 				urls (hash, src)
@@ -250,7 +250,7 @@ func (s *service) selectLong(ctx context.Context, hash string) (url string, err 
 		template.Must(template.New("").Parse(`
 			PRAGMA TablePathPrefix("{{ .TablePathPrefix }}");
 
-			DECLARE $hash as Utf8;
+			DECLARE $hash as Text;
 
 			SELECT
 				src

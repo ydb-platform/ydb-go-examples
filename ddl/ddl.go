@@ -13,7 +13,7 @@ PRAGMA TablePathPrefix("%s");
 CREATE TABLE small_table (
     a Uint64,
     b Uint64,
-    c Utf8,
+    c Text,
 	d Date,
     PRIMARY KEY (a, b)
 );
@@ -23,7 +23,7 @@ PRAGMA TablePathPrefix("%s");
 CREATE TABLE small_table2 (
 	a Uint64,
     b Uint64,
-    c Utf8 FAMILY family_large,
+    c Text FAMILY family_large,
 	d Date,
     PRIMARY KEY (a, b),
     FAMILY family_large (
@@ -36,7 +36,7 @@ PRAGMA TablePathPrefix("%s");
 CREATE TABLE small_table3 (
 	a Uint64,
     b Uint64,
-    c Utf8,
+    c Text,
 	d Date,
     PRIMARY KEY (a, b)
 )

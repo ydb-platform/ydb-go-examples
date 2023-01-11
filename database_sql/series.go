@@ -121,7 +121,7 @@ func selectScan(ctx context.Context, db *sql.DB, prefix string) (err error) {
 				template.Must(template.New("").Parse(`
 					PRAGMA TablePathPrefix("{{ .TablePathPrefix }}");
 
-					DECLARE $seriesTitle AS Utf8;
+					DECLARE $seriesTitle AS Text;
 	
 					SELECT 			series_id 		
 					FROM 			series
@@ -150,7 +150,7 @@ func selectScan(ctx context.Context, db *sql.DB, prefix string) (err error) {
 				template.Must(template.New("").Parse(`
 					PRAGMA TablePathPrefix("{{ .TablePathPrefix }}");
 
-					DECLARE $seasonTitle AS Utf8;
+					DECLARE $seasonTitle AS Text;
 			
 					SELECT 			season_id 		
 					FROM 			seasons
@@ -323,10 +323,10 @@ func prepareSchema(ctx context.Context, db *sql.DB, prefix string) (err error) {
 
 					CREATE TABLE series (
 						series_id Bytes,
-						title Utf8,
-						series_info Utf8,
+						title Text,
+						series_info Text,
 						release_date Date,
-						comment Utf8,
+						comment Text,
 						INDEX index_series_title GLOBAL ASYNC ON ( title ),
 						PRIMARY KEY (
 							series_id
@@ -367,7 +367,7 @@ func prepareSchema(ctx context.Context, db *sql.DB, prefix string) (err error) {
 					CREATE TABLE seasons (
 						series_id Bytes,
 						season_id Bytes,
-						title Utf8,
+						title Text,
 						first_aired Date,
 						last_aired Date,
 						INDEX index_seasons_title GLOBAL ASYNC ON ( title ),
@@ -413,7 +413,7 @@ func prepareSchema(ctx context.Context, db *sql.DB, prefix string) (err error) {
 						series_id Bytes,
 						season_id Bytes,
 						episode_id Bytes,
-						title Utf8,
+						title Text,
 						air_date Date,
 						views Uint64,
 						INDEX index_episodes_air_date GLOBAL ASYNC ON ( air_date ),
