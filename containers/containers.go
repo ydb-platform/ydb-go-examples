@@ -9,7 +9,7 @@ import (
 )
 
 var query = template.Must(template.New("fill database").Parse(`
-	DECLARE $var AS Variant<Utf8,Uint64,Uint32>;
+	DECLARE $var AS Variant<Text,Uint64,Uint32>;
 	SELECT
 		AsList("foo", "bar", "baz");
 	SELECT

@@ -57,7 +57,7 @@ DECLARE $ordersData AS List<Struct<
 	customer_id: Uint64,
 	order_id: Uint64,
 	order_date: Date,
-	description: Utf8>>;
+	description: Text>>;
 
 REPLACE INTO orders
 SELECT

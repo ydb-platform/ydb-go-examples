@@ -39,7 +39,7 @@ func createTables(ctx context.Context, db ydb.Connection) error {
 	}
 
 	_, err = db.Scripting().Execute(ctx, `
-CREATE TABLE bus (id Utf8, freeSeats Int64, PRIMARY KEY(id));
+CREATE TABLE bus (id Text, freeSeats Int64, PRIMARY KEY(id));
 
 ALTER TABLE 
 	bus

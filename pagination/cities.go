@@ -26,7 +26,7 @@ func selectPaging(
 		PRAGMA TablePathPrefix("%v");
 
 		DECLARE $limit AS Uint64;
-		DECLARE $lastCity AS Utf8;
+		DECLARE $lastCity AS Text;
 		DECLARE $lastNumber AS Uint32;
 		
 		$part1 = (
@@ -98,9 +98,9 @@ func fillTableWithData(ctx context.Context, c table.Client, prefix string) (err 
 		PRAGMA TablePathPrefix("%v");
 
 		DECLARE $schoolsData AS List<Struct<
-			city: Utf8,
+			city: Text,
 			number: Uint32,
-			address: Utf8>>;
+			address: Text>>;
 
 		REPLACE INTO schools
 		SELECT
