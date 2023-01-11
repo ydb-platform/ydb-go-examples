@@ -1,15 +1,15 @@
 name: lint
 on:
   push:
-    tags:
-      - 'v*'
     branches:
       - master
-      - '**'
   pull_request:
   workflow_dispatch:
 jobs:
   golangci:
+    concurrency:
+      group: lint-${{ github.ref }}-${{ matrix.os }}-${{ matrix.go-version }}
+      cancel-in-progress: true
     name: golangci-lint
     runs-on: ubuntu-latest
     steps:
@@ -17,4 +17,4 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v2
         with:
-          version: v1.46.2
+          version: v1.50.1
