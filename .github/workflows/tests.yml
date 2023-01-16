@@ -41,7 +41,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Test
-        run: go run ./basic -ydb=${YDB_CONNECTION_STRING} -prefix=basic
+        run: go run ./basic/native -ydb=${YDB_CONNECTION_STRING} -prefix=basic
   database_sql:
     concurrency:
       group: database_sql-${{ github.ref }}-${{ matrix.os }}-${{ matrix.go-version }}
@@ -76,7 +76,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Test
-        run: go run ./database_sql -ydb=${YDB_CONNECTION_STRING} -prefix=database/sql
+        run: go run ./basic/database_sql -ydb=${YDB_CONNECTION_STRING} -prefix=database/sql
   bulk_upsert:
     concurrency:
       group: bulk_upsert-${{ github.ref }}-${{ matrix.os }}-${{ matrix.go-version }}
