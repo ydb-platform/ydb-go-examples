@@ -34,6 +34,7 @@ func main() {
 	db, err := ydb.Open(
 		ctx,
 		dsn,
+		opts...,
 	)
 	if err != nil {
 		panic(fmt.Errorf("connect error: %w", err))
@@ -106,6 +107,6 @@ func prepareTableWithCDC(ctx context.Context, db ydb.Connection, prefix, tableNa
 		Name: consumerName,
 	}))
 	if err != nil {
-		panic(fmt.Errorf("failed to create feed consumer", err))
+		panic(fmt.Errorf("failed to create feed consumer: %+v", err))
 	}
 }
