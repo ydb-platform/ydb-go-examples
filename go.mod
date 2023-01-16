@@ -10,7 +10,7 @@ require (
 	github.com/ydb-platform/ydb-go-sdk-auth-environ v0.1.2
 	github.com/ydb-platform/ydb-go-sdk-prometheus v0.11.10
 	github.com/ydb-platform/ydb-go-sdk-zerolog v0.12.2
-	github.com/ydb-platform/ydb-go-sdk/v3 v3.39.0
+	github.com/ydb-platform/ydb-go-sdk/v3 v3.42.4
 	github.com/ydb-platform/ydb-go-yc v0.9.1
 	google.golang.org/genproto v0.0.0-20220822174746-9e6da59bd2fc
 )
@@ -29,7 +29,7 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/yandex-cloud/go-genproto v0.0.0-20220815090733-4c139c0154e2 // indirect
-	github.com/ydb-platform/ydb-go-genproto v0.0.0-20220922065549-66df47a830ba // indirect
+	github.com/ydb-platform/ydb-go-genproto v0.0.0-20221215182650-986f9d10542f // indirect
 	github.com/ydb-platform/ydb-go-sdk-metrics v0.16.3 // indirect
 	github.com/ydb-platform/ydb-go-yc-metadata v0.5.3 // indirect
 	golang.org/x/net v0.0.0-20220822230855-b0a4917ee28c // indirect
