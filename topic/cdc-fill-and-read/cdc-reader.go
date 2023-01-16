@@ -22,7 +22,7 @@ func cdcRead(ctx context.Context, db ydb.Connection, consumerName, topicPath str
 	for {
 		msg, err := reader.ReadMessage(ctx)
 		if err != nil {
-			panic(fmt.Errorf("failed to read message", err))
+			panic(fmt.Errorf("failed to read message: %+v", err))
 		}
 
 		var event interface{}

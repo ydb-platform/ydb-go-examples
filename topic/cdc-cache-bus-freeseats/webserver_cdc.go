@@ -9,10 +9,6 @@ import (
 	"github.com/ydb-platform/ydb-go-sdk/v3/topic/topicsugar"
 )
 
-func (s *server) dropFromCache(id string) {
-	s.cache.Delete(id)
-}
-
 func (s *server) cdcLoop() {
 	ctx := context.Background()
 	consumer := consumerName(s.id)
