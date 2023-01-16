@@ -4,10 +4,10 @@ lint:
 	golangci-lint run ./basic ./bulk_upsert ./containers ./ddl ./decimal ./healthcheck ./pagination ./partitioning_policies ./read_table ./ttl ./ttl_readtable ./url_shortener
 
 basic:
-	go run ./basic -ydb=${YDB_CONNECTION_STRING} -prefix=basic
+	go run ./basic/native -ydb=${YDB_CONNECTION_STRING} -prefix=basic
 
 database_sql:
-	go run ./database_sql -ydb=${YDB_CONNECTION_STRING} -prefix=database/sql
+	go run ./basic/database_sql -ydb=${YDB_CONNECTION_STRING} -prefix=database/sql
 
 bulk_upsert:
 	go run ./bulk_upsert -ydb=${YDB_CONNECTION_STRING} -prefix=bulk_upsert -table=bulk_upsert
