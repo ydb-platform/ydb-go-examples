@@ -61,7 +61,7 @@ func main() {
 
 	// get all series
 	var series []Series
-	if err = db.Find(&series).Error; err != nil {
+	if err = db.Preload("Seasons.Episodes").Find(&series).Error; err != nil {
 		panic(err)
 	}
 	log.Println("all known series:")
@@ -70,20 +70,12 @@ func main() {
 			"  > [%s]     %s (%s)\n",
 			s.ID, s.Title, s.ReleaseDate.Format("2006"),
 		)
-		seasons, err := s.GetSeasons(db)
-		if err != nil {
-			panic(err)
-		}
-		for _, ss := range seasons {
+		for _, ss := range s.Seasons {
 			log.Printf(
 				"    > [%s]   %s\n",
 				ss.ID, ss.Title,
 			)
-			episodes, err := ss.GetEpisodes(db)
-			if err != nil {
-				panic(err)
-			}
-			for _, e := range episodes {
+			for _, e := range ss.Episodes {
 				log.Printf(
 					"      > [%s] [%s] %s\n",
 					e.ID, e.AirDate.Format(dateISO8601), e.Title,

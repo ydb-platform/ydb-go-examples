@@ -1,7 +1,6 @@
 package main
 
 import (
-	"gorm.io/gorm/clause"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,16 +29,6 @@ func (s *Series) BeforeCreate(tx *gorm.DB) (err error) {
 	return
 }
 
-func (s *Series) GetSeasons(tx *gorm.DB) ([]Season, error) {
-	if len(s.Seasons) > 0 {
-		return s.Seasons, nil
-	}
-	return s.Seasons, tx.Order("first_aired").Find(&s.Seasons, clause.Eq{
-		Column: "series_id",
-		Value:  s.ID,
-	}).Error
-}
-
 type Season struct {
 	ID         string    `gorm:"column:season_id;primarykey"`
 	SeriesID   string    `gorm:"column:series_id;index"`
@@ -60,16 +49,6 @@ func (s *Season) BeforeCreate(tx *gorm.DB) (err error) {
 		episode.SeasonID = s.ID
 	}
 	return
-}
-
-func (s *Season) GetEpisodes(tx *gorm.DB) (episodes []Episode, _ error) {
-	if len(s.Episodes) > 0 {
-		return s.Episodes, nil
-	}
-	return s.Episodes, tx.Order("air_date").Find(&s.Episodes, clause.Eq{
-		Column: "season_id",
-		Value:  s.ID,
-	}).Error
 }
 
 type Episode struct {
