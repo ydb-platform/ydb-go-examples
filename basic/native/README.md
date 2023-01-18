@@ -1,4 +1,4 @@
-# Basic example
+# Basic example via native driver
 
 Basic example demonstrates the possibilities of `YDB`:
  - create/drop/describe tables

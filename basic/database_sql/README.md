@@ -1,4 +1,4 @@
-# Basic example
+# Basic example via database/sql driver
 
 Basic example demonstrates the possibilities of `YDB` with `database/sql` driver:
  - create/drop tables with `scheme` query mode
