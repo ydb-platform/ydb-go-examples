@@ -1,5 +1,7 @@
 package main
 
+import "time"
+
 var (
 	data = []Series{
 		{
@@ -365,3 +367,13 @@ var (
 		},
 	}
 )
+
+const dateISO8601 = "2006-01-02"
+
+func date(date string) time.Time {
+	t, err := time.Parse(dateISO8601, date)
+	if err != nil {
+		panic(err)
+	}
+	return t
+}

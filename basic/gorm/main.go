@@ -2,15 +2,13 @@ package main
 
 import (
 	"errors"
-	"gorm.io/gorm/clause"
-	"log"
-	"os"
-	"time"
-
 	ydb "github.com/ydb-platform/gorm-driver"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+	"log"
+	"os"
 )
 
 func initDB() (*gorm.DB, error) {
@@ -27,16 +25,6 @@ func initDB() (*gorm.DB, error) {
 		return gorm.Open(ydb.Open(dsn))
 	}
 	return nil, errors.New("cannot initialize DB")
-}
-
-const dateISO8601 = "2006-01-02"
-
-func date(date string) time.Time {
-	t, err := time.Parse(dateISO8601, date)
-	if err != nil {
-		panic(err)
-	}
-	return t
 }
 
 func main() {
