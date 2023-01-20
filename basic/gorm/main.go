@@ -2,34 +2,39 @@ package main
 
 import (
 	"errors"
-	ydb "github.com/ydb-platform/gorm-driver"
+	"gorm.io/gorm/logger"
+	"log"
+	"os"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"log"
-	"os"
+
+	ydb "github.com/ydb-platform/gorm-driver"
 )
 
-func initDB() (*gorm.DB, error) {
+func initDB(cfg *gorm.Config) (*gorm.DB, error) {
+	// docker run -it postgres psql -h 127.0.0.1 -p 5432 -U postgres -d postgres
+	// POSTGRES_CONNECTION_STRING="user=postgres password=mysecretpassword dbname=postgres host=127.0.0.1 port=5432 sslmode=disable"
 	if dsn, has := os.LookupEnv("POSTGRES_CONNECTION_STRING"); has {
-		return gorm.Open(postgres.New(postgres.Config{
-			DSN:                  dsn,
-			PreferSimpleProtocol: true,
-		}))
+		return gorm.Open(postgres.Open(dsn), cfg)
 	}
+	// SQLITE_CONNECTION_STRING=./test.db
 	if dsn, has := os.LookupEnv("SQLITE_CONNECTION_STRING"); has {
-		return gorm.Open(sqlite.Open(dsn))
+		return gorm.Open(sqlite.Open(dsn), cfg)
 	}
 	if dsn, has := os.LookupEnv("YDB_CONNECTION_STRING"); has {
-		return gorm.Open(ydb.Open(dsn))
+		return gorm.Open(ydb.Open(dsn), cfg)
 	}
 	return nil, errors.New("cannot initialize DB")
 }
 
 func main() {
 	// connect
-	db, err := initDB()
+	db, err := initDB(&gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -99,7 +104,7 @@ func findByTitle(db *gorm.DB) error {
 	var episodes []Episode
 	if err := db.Find(&episodes, clause.Like{
 		Column: "title",
-		Value:  "%bad%",
+		Value:  "%Bad%",
 	}).Error; err != nil {
 		return err
 	}
