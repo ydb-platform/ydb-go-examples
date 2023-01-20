@@ -4,5 +4,5 @@
 
 ## Runing code snippet
 ```bash
-service_account_credentials -ydb="grpcs://endpoint/?database=database" -sa-file="/Users/user/.ydb/sa.jsoon"
+service_account_credentials -ydb="grpcs://endpoint/?database=database" -sa-file="/Users/user/.ydb/sa.json"
 ```
