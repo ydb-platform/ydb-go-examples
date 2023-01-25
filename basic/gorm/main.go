@@ -33,7 +33,7 @@ func initDB(cfg *gorm.Config) (*gorm.DB, error) {
 func main() {
 	// connect
 	db, err := initDB(&gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
+		Logger: logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {
 		panic(err)
@@ -61,6 +61,13 @@ func main() {
 }
 
 func prepareScheme(db *gorm.DB) error {
+	if err := db.Migrator().DropTable(
+		&Series{},
+		&Season{},
+		&Episode{},
+	); err != nil {
+		return err
+	}
 	return db.AutoMigrate(
 		&Series{},
 		&Season{},
