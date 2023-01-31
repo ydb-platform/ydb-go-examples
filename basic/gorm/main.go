@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"gorm.io/gorm/logger"
 	"log"
 	"os"
 
@@ -10,6 +9,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"gorm.io/gorm/logger"
 
 	ydb "github.com/ydb-platform/gorm-driver"
 )
@@ -25,7 +25,7 @@ func initDB(cfg *gorm.Config) (*gorm.DB, error) {
 		return gorm.Open(sqlite.Open(dsn), cfg)
 	}
 	if dsn, has := os.LookupEnv("YDB_CONNECTION_STRING"); has {
-		return gorm.Open(ydb.Open(dsn), cfg)
+		return gorm.Open(ydb.Open(dsn, ydb.WithTablePathPrefix("gorm")), cfg)
 	}
 	return nil, errors.New("cannot initialize DB")
 }
