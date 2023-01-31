@@ -5,16 +5,18 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	environ "github.com/ydb-platform/ydb-go-sdk-auth-environ"
 )
 
 var (
-	dsn    string
-	prefix string
-	count  int
-	urls   = URLs{}
+	dsn      string
+	prefix   string
+	count    int
+	interval time.Duration
+	urls     = URLs{}
 )
 
 // URLs is a flag.Value implementation which holds URL's as string slice
@@ -58,6 +60,10 @@ func init() {
 		"count", 0,
 		"count of needed checks (one check per minute, -1 for busy loop, 0 for single shot)",
 	)
+	flagSet.DurationVar(&interval,
+		"interval", time.Minute,
+		"interval between checks",
+	)
 	if err := flagSet.Parse(os.Args[1:]); err != nil {
 		flagSet.Usage()
 		os.Exit(1)
@@ -79,25 +85,21 @@ func init() {
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	s, err := newService(
-		ctx,
-		dsn,
-		environ.WithEnvironCredentials(ctx),
-	)
+	s, err := getService(ctx, dsn, environ.WithEnvironCredentials(ctx))
 	if err != nil {
 		panic(fmt.Errorf("error on create service: %w", err))
 	}
 	defer s.Close(ctx)
 	for i := 0; ; i++ {
+		fmt.Println("check " + strconv.Itoa(i) + ":")
 		if err := s.check(ctx, urls.urls); err != nil {
-			panic(fmt.Errorf("error on check URLS %v: %w", urls, err))
+			panic(fmt.Errorf("error on check URLS: %w", err))
 		}
-		fmt.Printf("i=%d, count=%d\n", i, count)
 		if count >= 0 && i == count {
 			return
 		}
 		select {
-		case <-time.After(time.Minute):
+		case <-time.After(interval):
 			continue
 		case <-ctx.Done():
 			return

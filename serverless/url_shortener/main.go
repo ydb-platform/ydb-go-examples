@@ -94,7 +94,7 @@ func main() {
 	}
 	defer cancel()
 
-	s, err := newService(
+	s, err := getService(
 		ctx,
 		dsn,
 		environ.WithEnvironCredentials(ctx),

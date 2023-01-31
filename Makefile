@@ -1,4 +1,4 @@
-all: basic bulk_upsert containers ddl decimal healthcheck pagination partitioning_policies read_table ttl ttl_readtable url_shortener
+all: basic bulk_upsert containers ddl decimal serverless/healthcheck pagination partitioning_policies read_table ttl ttl_readtable serverless/url_shortener
 
 lint:
 	golangci-lint run ./basic ./bulk_upsert ./containers ./ddl ./decimal ./healthcheck ./pagination ./partitioning_policies ./read_table ./ttl ./ttl_readtable ./url_shortener
@@ -21,9 +21,6 @@ ddl:
 decimal:
 	go run ./decimal -ydb=${YDB_CONNECTION_STRING} -prefix=decimal
 
-healthcheck:
-	go run ./healthcheck -ydb=${YDB_CONNECTION_STRING} -prefix=healthcheck -url=ya.ru -url=google.com
-
 pagination:
 	go run ./pagination -ydb=${YDB_CONNECTION_STRING} -prefix=pagination
 
@@ -39,8 +36,11 @@ ttl:
 ttl_readtable:
 	go run ./ttl_readtable -ydb=${YDB_CONNECTION_STRING} -prefix=ttl_readtable
 
+healthcheck:
+	go run ./serverless/healthcheck -ydb=${YDB_CONNECTION_STRING} -prefix=healthcheck -url=ya.ru -url=google.com
+
 url_shortener:
-	go run ./url_shortener -ydb=${YDB_CONNECTION_STRING} -prefix=url_shortener
+	go run ./serverless/url_shortener -ydb=${YDB_CONNECTION_STRING} -prefix=url_shortener
 
 describe:
 	go run ./describe -ydb=${YDB_CONNECTION_STRING} -prefix=/ -t="Optional<Interval>" -t="Interval"
