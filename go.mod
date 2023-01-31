@@ -1,18 +1,22 @@
 module github.com/ydb-platform/ydb-go-examples
 
-go 1.19
+go 1.18
 
 require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/prometheus/client_golang v1.13.0
 	github.com/rs/zerolog v1.27.0
+	github.com/ydb-platform/gorm-driver v0.0.1
 	github.com/ydb-platform/ydb-go-sdk-auth-environ v0.1.2
 	github.com/ydb-platform/ydb-go-sdk-prometheus v0.11.10
 	github.com/ydb-platform/ydb-go-sdk-zerolog v0.12.2
 	github.com/ydb-platform/ydb-go-sdk/v3 v3.42.7
 	github.com/ydb-platform/ydb-go-yc v0.9.1
 	google.golang.org/genproto v0.0.0-20220822174746-9e6da59bd2fc
+	gorm.io/driver/postgres v1.4.6
+	gorm.io/driver/sqlite v1.4.4
+	gorm.io/gorm v1.24.2
 )
 
 require (
@@ -35,7 +39,6 @@ require (
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
 	github.com/yandex-cloud/go-genproto v0.0.0-20220815090733-4c139c0154e2 // indirect
-	github.com/ydb-platform/gorm-driver v0.0.1 // indirect
 	github.com/ydb-platform/ydb-go-genproto v0.0.0-20221215182650-986f9d10542f // indirect
 	github.com/ydb-platform/ydb-go-sdk-metrics v0.16.3 // indirect
 	github.com/ydb-platform/ydb-go-yc-metadata v0.5.3 // indirect
@@ -46,7 +49,4 @@ require (
 	golang.org/x/text v0.5.0 // indirect
 	google.golang.org/grpc v1.49.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
-	gorm.io/driver/postgres v1.4.6 // indirect
-	gorm.io/driver/sqlite v1.4.4 // indirect
-	gorm.io/gorm v1.24.2 // indirect
 )
